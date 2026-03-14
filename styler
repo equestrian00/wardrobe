@@ -14,10 +14,6 @@ const CONFIG = {
     // Path to your clothing item notes (no leading/trailing slash)
     itemsFolder: "Items",
 
-    // ── Color Theory ─────────────────────────────────────────────
-    // List which colors pair WELL with each key color.
-    // Rule: if you don't want "Navy on Navy", simply don't add
-    // "Navy" inside its own array. The engine respects omissions.
     COLOR_THEORY: {
         "Black":      ["White", "Grey", "Cream", "Camel", "Red", "Pink",
                        "Cobalt", "Gold", "Silver", "Blush", "Lavender"],
@@ -62,9 +58,6 @@ const CONFIG = {
         "Gingham":    ["White", "Navy", "Black", "Red"],
     },
 
-    // ── Category Rules ───────────────────────────────────────────
-    // When the hero is category X, which OTHER categories should
-    // appear in the suggestion slots?
     CATEGORY_RULES: {
         "tops":        ["bottoms", "outerwear", "footwear", "accessories", "bags"],
         "bottoms":     ["tops", "outerwear", "footwear", "accessories", "bags"],
@@ -80,11 +73,6 @@ const CONFIG = {
         "nightwear":   [],
     },
 
-    // ── Subcategory Overrides ────────────────────────────────────
-    // Fine-tune which sub-categories to prefer for a given slot
-    // when the HERO has a specific clothingsubcategory.
-    // Key  = hero's clothingsubcategory (lowercase)
-    // Value = { slotCategory: [preferred clothingsubcategory values] }
     SUBCATEGORY_RULES: {
         "sundress":     { footwear: ["heels", "sandals", "sneakers", "mules"] },
         "maxi dress":   { footwear: ["sandals", "heels", "flats", "boots"] },
@@ -98,11 +86,6 @@ const CONFIG = {
         "jumpsuit":     { footwear: ["heels", "sandals", "sneakers"] },
     },
 
-    // ── Outfit Formulas ──────────────────────────────────────────
-    // Each formula defines which category SLOTS must be filled.
-    // The hero item occupies its own slot automatically.
-    // Optional `seasons` array restricts this formula's suggestion
-    // pool to items that share at least one of those seasons.
     OUTFIT_FORMULAS: {
         "Standard":       { slots: ["tops", "bottoms", "footwear"] },
         "One Piece":      { slots: ["full body", "footwear"] },
@@ -121,17 +104,14 @@ const CONFIG = {
                                     "footwear", "bags", "accessories"] },
     },
 
-    // ── Scoring Weights ──────────────────────────────────────────
     SCORE: {
-        EXPLICIT_PAIR:    100,  // item is in hero's `pairs` list
-        COLOR_MATCH:       50,  // color theory hit
-        MOOD_OVERLAP:      20,  // per shared mood tag
-        OCCASION_OVERLAP:  20,  // per shared occasion tag
-        SEASON_OVERLAP:    15,  // per shared season tag
+        EXPLICIT_PAIR:    100,
+        COLOR_MATCH:       50,
+        MOOD_OVERLAP:      20,
+        OCCASION_OVERLAP:  20,
+        SEASON_OVERLAP:    15,
     },
 
-    // ── Debug default ────────────────────────────────────────────
-    // Set true to always show score badges on load
     debugDefault: false,
 };
 
@@ -139,14 +119,12 @@ const CONFIG = {
 //  🛠  UTILITY HELPERS
 // ═══════════════════════════════════════════════════════════════
 
-/** Coerce a frontmatter value to a clean string array */
 function asList(val) {
     if (!val) return [];
     if (Array.isArray(val)) return val.map(v => String(v).trim()).filter(Boolean);
     return [String(val).trim()].filter(Boolean);
 }
 
-/** Lowercase + trim a single value */
 function lc(v) { return String(v || "").toLowerCase().trim(); }
 
 /** Title-case a single word */
@@ -158,13 +136,13 @@ function toTitleCase(word) {
  * Flatten a frontmatter value (string or array) into a clean
  * title-cased phrase with no commas.
  * "crew neck,pullover,long sleeve" → "Crew Neck Pullover Long Sleeve"
- * ["crew neck", "pullover"] → "Crew Neck Pullover"
+ * ["crew neck", "pullover"]       → "Crew Neck Pullover"
  */
 function cleanStyleField(val) {
     if (!val) return "";
     const parts = Array.isArray(val) ? val : [val];
     return parts
-        .flatMap(s => String(s).split(","))          // split on commas
+        .flatMap(s => String(s).split(","))
         .map(s => s.trim())
         .filter(Boolean)
         .map(phrase => phrase.split(/\s+/).map(toTitleCase).join(" "))
@@ -173,20 +151,18 @@ function cleanStyleField(val) {
 
 /** Display name: "Brand Style Subcategory" */
 function displayName(p) {
-    const brand    = p.brand    ? String(p.brand).trim() : "";
-    const style    = cleanStyleField(p.clothingstyle);
-    const subcat   = p.clothingsubcategory
+    const brand  = p.brand  ? String(p.brand).trim() : "";
+    const style  = cleanStyleField(p.clothingstyle);
+    const subcat = p.clothingsubcategory
         ? String(p.clothingsubcategory).split(/\s+/).map(toTitleCase).join(" ")
         : "";
     return [brand, style, subcat].filter(Boolean).join(" ")
         || p.file.name.replace(/\.md$/, "");
 }
 
-/** Resolve an image frontmatter value to a usable src URL */
 function resolveImage(imageProp) {
     if (!imageProp) return null;
     const s = String(imageProp);
-    // Wikilink  ![[file.jpg]]  or  [[file.jpg]]
     const wm = s.match(/!?\[\[(.+?)(?:\|[^\]]+)?\]\]/);
     if (wm) {
         const name = wm[1];
@@ -197,16 +173,10 @@ function resolveImage(imageProp) {
         return f ? app.vault.getResourcePath(f) : null;
     }
     if (/^https?:\/\//.test(s)) return s;
-    // Plain path
     const f2 = app.vault.getAbstractFileByPath(s);
     return f2 ? app.vault.getResourcePath(f2) : null;
 }
 
-/**
- * Extract file paths from a frontmatter link property.
- * DataviewJS returns Link objects with a .path; we also handle
- * plain strings and wikilink strings.
- */
 function linkPaths(val) {
     if (!val) return [];
     const arr = Array.isArray(val) ? val : [val];
@@ -218,7 +188,6 @@ function linkPaths(val) {
     }).filter(Boolean);
 }
 
-/** True if filePath matches any path in a link-paths array */
 function fileMatchesAny(filePath, paths) {
     const base = filePath.replace(/\.md$/, "");
     return paths.some(p => {
@@ -230,13 +199,11 @@ function fileMatchesAny(filePath, paths) {
     });
 }
 
-/** Count overlapping items (case-insensitive) between two string arrays */
 function countOverlap(a, b) {
     const bSet = new Set(b.map(lc));
     return a.filter(x => bSet.has(lc(x))).length;
 }
 
-/** Color-theory match: does any heroColor pair well with any candidateColor? */
 function colorTheoryMatch(heroColors, candColors, theory) {
     for (const hc of heroColors) {
         const allowed = (theory[hc] || []).map(lc);
@@ -249,40 +216,29 @@ function colorTheoryMatch(heroColors, candColors, theory) {
 //  🧠  SCORING ENGINE
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Score a candidate against the hero item.
- * Returns null if the candidate fails any hard filter,
- * or { page, score, reasons[] } otherwise.
- */
 function scoreCandidate(hero, candidate, wearableOnly) {
-    // Skip self
     if (candidate.file.path === hero.file.path) return null;
 
-    // ── Hard filter: wearable status ──
     if (wearableOnly) {
         const s = lc(candidate.clothingstatus);
         if (s === "hamper" || s === "laundry" ||
             s === "donate"  || s === "repair") return null;
     }
 
-    // ── Hard filter: avoids ──
     const heroAvoids = linkPaths(hero.avoids);
     const candAvoids = linkPaths(candidate.avoids);
     if (fileMatchesAny(candidate.file.path, heroAvoids)) return null;
     if (fileMatchesAny(hero.file.path, candAvoids))      return null;
 
-    // ── Scoring ──
     let score = 0;
     const reasons = [];
 
-    // +100  explicit pair
     const heroPairs = linkPaths(hero.pairs);
     if (fileMatchesAny(candidate.file.path, heroPairs)) {
         score += CONFIG.SCORE.EXPLICIT_PAIR;
         reasons.push(`+${CONFIG.SCORE.EXPLICIT_PAIR} paired`);
     }
 
-    // +50  color theory
     const hColors = asList(hero.color);
     const cColors = asList(candidate.color);
     if (hColors.length && cColors.length &&
@@ -291,7 +247,6 @@ function scoreCandidate(hero, candidate, wearableOnly) {
         reasons.push(`+${CONFIG.SCORE.COLOR_MATCH} color`);
     }
 
-    // +20 × n  mood overlap
     const moodHits = countOverlap(asList(hero.mood), asList(candidate.mood));
     if (moodHits) {
         const pts = moodHits * CONFIG.SCORE.MOOD_OVERLAP;
@@ -299,7 +254,6 @@ function scoreCandidate(hero, candidate, wearableOnly) {
         reasons.push(`+${pts} mood`);
     }
 
-    // +20 × n  occasion overlap
     const occHits = countOverlap(asList(hero.occasion), asList(candidate.occasion));
     if (occHits) {
         const pts = occHits * CONFIG.SCORE.OCCASION_OVERLAP;
@@ -307,7 +261,6 @@ function scoreCandidate(hero, candidate, wearableOnly) {
         reasons.push(`+${pts} occasion`);
     }
 
-    // +15 × n  season overlap
     const seasonHits = countOverlap(asList(hero.season), asList(candidate.season));
     if (seasonHits) {
         const pts = seasonHits * CONFIG.SCORE.SEASON_OVERLAP;
@@ -342,9 +295,7 @@ const state = {
     filterFormula:  "Standard",
     wearableOnly:   true,
     debug:          CONFIG.debugDefault,
-    // slots: { categoryKey -> { candidates: ScoredItem[], index: number, locked: bool } }
-    slots: {},
-    // Paths of items forced in by a `requires` link (used for badge + lock)
+    slots:          {},
     requiredPaths:  new Set(),
 };
 
@@ -359,17 +310,14 @@ function updateSuggestions() {
     const heroCat  = lc(state.heroPage.clothingcategory);
     const heroSub  = lc(state.heroPage.clothingsubcategory || "");
 
-    // Slots the formula needs, minus the hero's own category
     const skipCats = heroCat === "full body" ? ["tops", "bottoms", heroCat] : [heroCat];
     const needed   = formula.slots.filter(s => !skipCats.includes(s));
 
     state.slots = {};
 
     needed.forEach(slotCat => {
-        // Base pool: correct category
         let pool = allPages.filter(p => lc(p.clothingcategory) === slotCat);
 
-        // Apply global season / mood / occasion filters to suggestion pool
         if (state.filterSeason.length) {
             const active = state.filterSeason.map(lc);
             pool = pool.filter(p =>
@@ -386,14 +334,12 @@ function updateSuggestions() {
                 asList(p.occasion).some(o => active.includes(lc(o))));
         }
 
-        // Formula-level season restriction
         if (formula.seasons && formula.seasons.length) {
             const fSeasons = formula.seasons.map(lc);
             pool = pool.filter(p =>
                 asList(p.season).some(s => fSeasons.includes(lc(s))));
         }
 
-        // Subcategory preference override
         const subRule = CONFIG.SUBCATEGORY_RULES[heroSub];
         if (subRule && subRule[slotCat]) {
             const preferred = subRule[slotCat].map(lc);
@@ -402,7 +348,6 @@ function updateSuggestions() {
             if (prefPool.length > 0) pool = prefPool;
         }
 
-        // Score every candidate
         const scored = pool
             .map(p => scoreCandidate(state.heroPage, p, state.wearableOnly))
             .filter(Boolean)
@@ -411,38 +356,23 @@ function updateSuggestions() {
         state.slots[slotCat] = { candidates: scored, index: 0, locked: false };
     });
 
-    // ── Resolve `requires` links (cascading) ──────────────────────
     resolveRequires();
 }
 
-/**
- * After scoring is done, walk every active item's `requires` links and
- * force those pages to the front of their category slot.
- *
- * • If the slot already exists: required item is moved to index 0 and
- *   the slot is locked (shuffle hidden) so it can't be cycled away from.
- * • If the slot doesn't exist yet (category not in the formula): a new
- *   slot is created so the item always shows up.
- * • Cascades: if a required item itself has `requires`, those are
- *   resolved too — loops until no new items are discovered.
- */
 function resolveRequires() {
     state.requiredPaths = new Set();
     if (!state.heroPage) return;
 
-    // Unlock all slots before re-resolving (clean slate each call)
     Object.values(state.slots).forEach(s => { s.locked = false; });
 
-    // BFS from hero, then cascade through each required item
     const visited = new Set([state.heroPage.file.path]);
     const queue   = [state.heroPage];
 
     while (queue.length) {
-        const page    = queue.shift();
+        const page     = queue.shift();
         const reqPaths = linkPaths(page.requires);
 
         for (const rPath of reqPaths) {
-            // Find the page in the vault
             const reqPage = allPages.find(p => fileMatchesAny(p.file.path, [rPath]));
             if (!reqPage || visited.has(reqPage.file.path)) continue;
             visited.add(reqPage.file.path);
@@ -450,30 +380,22 @@ function resolveRequires() {
             state.requiredPaths.add(reqPage.file.path);
             const cat = lc(reqPage.clothingcategory);
 
-            // Create slot if the formula didn't include this category
             if (!state.slots[cat]) {
                 state.slots[cat] = { candidates: [], index: 0, locked: false };
             }
 
             const slot = state.slots[cat];
-
-            // Remove it from wherever it already sits in the candidate list
             slot.candidates = slot.candidates.filter(
                 c => c.page.file.path !== reqPage.file.path
             );
-
-            // Push to the very front with a sentinel score
             slot.candidates.unshift({
                 page:    reqPage,
                 score:   999,
                 reasons: ["required"],
             });
-
-            // Lock: index snaps to 0 and the shuffle button is hidden
             slot.index  = 0;
             slot.locked = true;
 
-            // Cascade into this item's own requires
             queue.push(reqPage);
         }
     }
@@ -503,7 +425,7 @@ function pickRandomHero() {
         pool = pool.filter(p =>
             asList(p.occasion).some(o => active.includes(lc(o))));
     }
-    if (!pool.length) { showToast("⚠ No items match the active filters."); return; }
+    if (!pool.length) { showToast("No items match the active filters."); return; }
     state.heroPage = pool[Math.floor(Math.random() * pool.length)];
     updateSuggestions();
 }
@@ -515,12 +437,18 @@ function pickRandomHero() {
 async function logOutfit() {
     if (!state.heroPage) return;
 
-    const formula  = CONFIG.OUTFIT_FORMULAS[state.filterFormula];
-    const heroCat  = lc(state.heroPage.clothingcategory);
-    const skipCats = heroCat === "full body" ? ["tops", "bottoms", heroCat] : [heroCat];
+    const formula     = CONFIG.OUTFIT_FORMULAS[state.filterFormula];
+    const heroCat     = lc(state.heroPage.clothingcategory);
+    const skipCats    = heroCat === "full body" ? ["tops", "bottoms", heroCat] : [heroCat];
     const activeSlots = formula.slots.filter(s => !skipCats.includes(s));
 
-    const outfitPages = activeSlots
+    // Include both formula slots and any extra required slots
+    const allSlotCats = [
+        ...activeSlots,
+        ...Object.keys(state.slots).filter(cat => !activeSlots.includes(cat) && !skipCats.includes(cat))
+    ];
+
+    const outfitPages = allSlotCats
         .map(slotCat => {
             const d = state.slots[slotCat];
             if (!d || !d.candidates.length) return null;
@@ -528,8 +456,8 @@ async function logOutfit() {
         })
         .filter(Boolean);
 
-    const today      = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
-    const allInFit   = [state.heroPage, ...outfitPages];
+    const today    = new Date().toLocaleDateString("en-CA");
+    const allInFit = [state.heroPage, ...outfitPages];
 
     try {
         for (const page of allInFit) {
@@ -545,9 +473,9 @@ async function logOutfit() {
                 fm.outfits.push(`${today}: Worn with ${others}`);
             });
         }
-        showToast(`✓ Outfit logged — ${allInFit.length} items updated.`);
+        showToast(`Outfit logged — ${allInFit.length} items updated.`);
     } catch (e) {
-        showToast(`⚠ Could not log outfit: ${e.message}`, true);
+        showToast(`Could not log outfit: ${e.message}`, true);
         console.error("[Wardrobe Stylist] logOutfit error:", e);
     }
 }
@@ -556,21 +484,17 @@ async function logOutfit() {
 //  🎨  UI BUILDER
 // ═══════════════════════════════════════════════════════════════
 
-// Shared reference to the canvas element so we can refresh it
-// without re-rendering the entire page.
 let $canvas = null;
 
-/** Full render — call when filters, debug toggle, or hero changes */
 function render() {
     ROOT.innerHTML = "";
     $canvas = null;
     ROOT.appendChild(buildHeader());
     ROOT.appendChild(buildFilters());
-    const canvasWrapper = buildCanvas();
-    ROOT.appendChild(canvasWrapper);
+    ROOT.appendChild(buildCanvas());
 }
 
-// ── Header ──────────────────────────────────────────────────────
+// ── Header ───────────────────────────────────────────────────────
 function buildHeader() {
     const el = make("div", "ws-header");
 
@@ -592,14 +516,13 @@ function buildHeader() {
         state.wearableOnly = wCb.checked;
         updateSuggestions();
         refreshCanvas();
-        // Update icon state without full re-render
         dot.className = "ws-wearable-dot" + (state.wearableOnly ? " ws-wearable-dot--on" : "");
-        wLabel.title = state.wearableOnly
+        wLabel.title  = state.wearableOnly
             ? "Wearable only (clean items)"
             : "All items (including laundry, etc.)";
     };
 
-    const dot = make("span", "ws-wearable-dot" + (state.wearableOnly ? " ws-wearable-dot--on" : ""));
+    const dot   = make("span", "ws-wearable-dot" + (state.wearableOnly ? " ws-wearable-dot--on" : ""));
     const wText = make("span", "ws-wearable-text");
     wText.textContent = "Wearable";
 
@@ -630,28 +553,22 @@ function buildHeader() {
 function buildFilters() {
     const el = make("div", "ws-filters");
 
-    // Season pills
     if (ALL_SEASONS.length) {
         el.appendChild(buildPillGroup("Season", ALL_SEASONS, state.filterSeason, () => {
             updateSuggestions(); refreshCanvas();
         }));
     }
-
-    // Mood pills
     if (ALL_MOODS.length) {
         el.appendChild(buildPillGroup("Mood", ALL_MOODS, state.filterMood, () => {
             updateSuggestions(); refreshCanvas();
         }));
     }
-
-    // Occasion pills
     if (ALL_OCCASIONS.length) {
         el.appendChild(buildPillGroup("Occasion", ALL_OCCASIONS, state.filterOccasion, () => {
             updateSuggestions(); refreshCanvas();
         }));
     }
 
-    // Formula selector
     const formulaGroup = make("div", "ws-filter-group");
     const formulaLabel = make("span", "ws-filter-label");
     formulaLabel.textContent = "Formula";
@@ -660,9 +577,9 @@ function buildFilters() {
     const sel = make("select", "ws-select");
     Object.keys(CONFIG.OUTFIT_FORMULAS).forEach(name => {
         const opt = document.createElement("option");
-        opt.value    = name;
+        opt.value       = name;
         opt.textContent = name;
-        opt.selected = name === state.filterFormula;
+        opt.selected    = name === state.filterFormula;
         sel.appendChild(opt);
     });
     sel.onchange = () => {
@@ -672,7 +589,6 @@ function buildFilters() {
     formulaGroup.appendChild(sel);
     el.appendChild(formulaGroup);
 
-    // Random button
     const rndBtn = makeBtn("Random", "ws-btn ws-btn--random", () => {
         pickRandomHero();
         render();
@@ -714,7 +630,6 @@ function buildCanvas() {
     return $canvas;
 }
 
-/** Refresh only the canvas area — cheaper than full render() */
 function refreshCanvas() {
     if (!$canvas) return;
     $canvas.innerHTML = "";
@@ -731,7 +646,6 @@ function refreshCanvas() {
         heroPanel.appendChild(placeholder);
     }
 
-    // Hero selector (always visible)
     heroPanel.appendChild(buildHeroSelector());
     $canvas.appendChild(heroPanel);
 
@@ -743,9 +657,9 @@ function refreshCanvas() {
         hint.textContent = "Your outfit will appear here once you pick a hero item.";
         suggPanel.appendChild(hint);
     } else {
-        const formula  = CONFIG.OUTFIT_FORMULAS[state.filterFormula];
-        const heroCat  = lc(state.heroPage.clothingcategory);
-        const skipCats = heroCat === "full body" ? ["tops", "bottoms", heroCat] : [heroCat];
+        const formula     = CONFIG.OUTFIT_FORMULAS[state.filterFormula];
+        const heroCat     = lc(state.heroPage.clothingcategory);
+        const skipCats    = heroCat === "full body" ? ["tops", "bottoms", heroCat] : [heroCat];
         const activeSlots = formula.slots.filter(s => !skipCats.includes(s));
 
         if (!activeSlots.length) {
@@ -756,7 +670,7 @@ function refreshCanvas() {
             activeSlots.forEach(slotCat => {
                 const slotData = state.slots[slotCat];
 
-                const slotWrap = make("div", "ws-slot");
+                const slotWrap  = make("div", "ws-slot");
                 const slotLabel = make("div", "ws-slot-label");
                 slotLabel.textContent = slotCat;
                 slotWrap.appendChild(slotLabel);
@@ -773,15 +687,11 @@ function refreshCanvas() {
 
                     const cardEl = buildCard(
                         item.page, item.score, item.reasons, false,
-                        locked ? null : () => {          // no shuffle fn when locked
-                            slotData.index++;
-                            refreshCanvas();
-                        },
+                        locked ? null : () => { slotData.index++; refreshCanvas(); },
                         state.requiredPaths.has(item.page.file.path)
                     );
                     slotWrap.appendChild(cardEl);
 
-                    // Counter — hide when locked (only one valid item)
                     if (total > 1 && !locked) {
                         const counter = make("div", "ws-slot-counter");
                         counter.textContent = `${idx + 1} / ${total}`;
@@ -792,8 +702,7 @@ function refreshCanvas() {
                 suggPanel.appendChild(slotWrap);
             });
 
-            // ── Render any bonus slots added by `requires` resolution ──
-            // (categories not in the formula but forced in by a requires link)
+            // Extra slots added by requires resolution
             const extraSlotCats = Object.keys(state.slots).filter(
                 cat => !activeSlots.includes(cat) && !skipCats.includes(cat)
             );
@@ -810,12 +719,7 @@ function refreshCanvas() {
                 const idx  = slotData.index % slotData.candidates.length;
                 const item = slotData.candidates[idx];
 
-                const cardEl = buildCard(
-                    item.page, item.score, item.reasons, false,
-                    null,   // always locked — required item
-                    true
-                );
-                slotWrap.appendChild(cardEl);
+                slotWrap.appendChild(buildCard(item.page, item.score, item.reasons, false, null, true));
                 suggPanel.appendChild(slotWrap);
             });
         }   // end else (activeSlots exist)
@@ -837,7 +741,6 @@ function buildHeroSelector() {
     ph.textContent = state.heroPage ? "Change hero…" : "Select hero item…";
     sel.appendChild(ph);
 
-    // Build pool (respect wearable filter)
     let heroPool = state.wearableOnly
         ? allPages.filter(p => {
               const s = lc(p.clothingstatus);
@@ -846,7 +749,6 @@ function buildHeroSelector() {
           })
         : allPages;
 
-    // Group by clothingcategory
     const grouped = {};
     heroPool.forEach(p => {
         const cat = p.clothingcategory || "Uncategorized";
@@ -862,10 +764,10 @@ function buildHeroSelector() {
                 .sort((a, b) => displayName(a).localeCompare(displayName(b)))
                 .forEach(p => {
                     const opt = document.createElement("option");
-                    opt.value    = p.file.path;
+                    opt.value       = p.file.path;
                     opt.textContent = displayName(p);
-                    opt.selected = !!(state.heroPage &&
-                                      state.heroPage.file.path === p.file.path);
+                    opt.selected    = !!(state.heroPage &&
+                                         state.heroPage.file.path === p.file.path);
                     og.appendChild(opt);
                 });
             sel.appendChild(og);
@@ -884,15 +786,14 @@ function buildHeroSelector() {
 
 // ── Card ─────────────────────────────────────────────────────────
 function buildCard(page, score, reasons, isHero, onShuffle, isRequired = false) {
-    const imgSrc  = resolveImage(page.image);
-    const name    = displayName(page);
-    const size    = page.size   ? `Size ${page.size}` : "";
-    const colors  = asList(page.color).join(", ");
-    const tags    = asList(page.stylingtags).join("  ·  ");
+    const imgSrc = resolveImage(page.image);
+    const name   = displayName(page);
+    const size   = page.size ? `Size ${page.size}` : "";
+    const colors = asList(page.color).join(", ");
+    const tags   = asList(page.styling_tags).join("  ·  ");
 
     const card = make("div", "ws-card" + (isHero ? " ws-card--hero" : ""));
 
-    // Image
     const imgEl = make("div", "ws-card__img");
     if (imgSrc) {
         imgEl.style.backgroundImage = `url('${imgSrc}')`;
@@ -901,22 +802,17 @@ function buildCard(page, score, reasons, isHero, onShuffle, isRequired = false) 
     }
     card.appendChild(imgEl);
 
-    // Required badge (takes priority over score badge)
     if (isRequired) {
         const reqBadge = make("div", "ws-required-badge");
         reqBadge.textContent = "✦ required";
         card.appendChild(reqBadge);
     } else if (!isHero && score !== undefined && state.debug) {
-        // Score badge (debug mode, suggestions only)
         const badge = make("div", "ws-score-badge");
         badge.textContent = score;
-        if (reasons && reasons.length) {
-            badge.title = reasons.join("  |  ");
-        }
+        if (reasons && reasons.length) badge.title = reasons.join("  |  ");
         card.appendChild(badge);
     }
 
-    // Shuffle button (suggestions only)
     if (!isHero && onShuffle) {
         const shuffleBtn = make("button", "ws-shuffle-btn");
         shuffleBtn.textContent = "↻";
@@ -925,7 +821,6 @@ function buildCard(page, score, reasons, isHero, onShuffle, isRequired = false) 
         card.appendChild(shuffleBtn);
     }
 
-    // Info
     const info = make("div", "ws-card__info");
 
     const titleEl = make("div", "ws-card__title");
@@ -1186,9 +1081,7 @@ const CSS = `
     box-shadow: 0 6px 22px rgba(0,0,0,0.09);
     transform: translateY(-1px);
 }
-.ws-card--hero {
-    width: 200px;
-}
+.ws-card--hero { width: 200px; }
 .ws-card__img {
     width: 100%;
     height: 200px;
@@ -1204,9 +1097,7 @@ const CSS = `
     font-size: 32px;
     opacity: 0.18;
 }
-.ws-card__info {
-    padding: 9px 11px 11px;
-}
+.ws-card__info { padding: 9px 11px 11px; }
 .ws-card__title {
     font-family: "Georgia", serif;
     font-size: 12px;
@@ -1243,15 +1134,8 @@ const CSS = `
     backdrop-filter: blur(4px);
     pointer-events: none;
 }
-
-/* Required slot label variant */
-.ws-slot-label--required {
-    color: rgba(180, 120, 60, 0.8);
-}
-.ws-slot-label--required::after {
-    content: "  ✦";
-    opacity: 0.6;
-}
+.ws-slot-label--required { color: rgba(180, 120, 60, 0.8); }
+.ws-slot-label--required::after { content: "  ✦"; opacity: 0.6; }
 
 /* ── Score badge ──────────────────────────────────── */
 .ws-score-badge {
@@ -1293,7 +1177,7 @@ const CSS = `
 
 /* ── Hero selector ────────────────────────────────── */
 .ws-hero-selector { width: 100%; }
-.ws-select--hero { width: 100%; }
+.ws-select--hero  { width: 100%; }
 
 /* ── Card placeholder ─────────────────────────────── */
 .ws-card-placeholder {
@@ -1308,10 +1192,7 @@ const CSS = `
     gap: 10px;
     background: var(--background-secondary);
 }
-.ws-placeholder-icon {
-    font-size: 28px;
-    opacity: 0.15;
-}
+.ws-placeholder-icon { font-size: 28px; opacity: 0.15; }
 .ws-placeholder-text {
     font-family: -apple-system, sans-serif;
     font-size: 11px;
@@ -1416,7 +1297,6 @@ const CSS = `
 //  🚀  BOOTSTRAP
 // ═══════════════════════════════════════════════════════════════
 
-// Inject styles (idempotent via data attribute)
 const STYLE_ID = "wardrobe-stylist-css";
 if (!document.getElementById(STYLE_ID)) {
     const styleEl = document.createElement("style");
@@ -1425,7 +1305,6 @@ if (!document.getElementById(STYLE_ID)) {
     document.head.appendChild(styleEl);
 }
 
-// Mount root
 const ROOT = dv.container;
 ROOT.className = "ws-root";
 
