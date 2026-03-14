@@ -14,6 +14,49 @@ const CONFIG = {
     // Path to your clothing item notes (no leading/trailing slash)
     itemsFolder: "Items",
 
+    // ── Frontmatter Key Map ──────────────────────────────────────
+    // Maps internal aliases → your actual frontmatter property names.
+    // If you rename a property in your notes, only change the value
+    // here — nothing else in the script needs to change.
+    keys: {
+        // Identity / display
+        brand:         "brand",
+        style:         "clothingstyle",
+        subcategory:   "clothingsubcategory",
+        category:      "clothingcategory",
+        // Status & logistics
+        status:        "clothingstatus",
+        location:      "location",
+        // Physical attributes
+        size:          "size",
+        color:         "color",
+        pattern:       "pattern",
+        // Media & purchase
+        image:         "image",
+        link:          "link",
+        cost:          "cost",
+        purchase_date: "purchase_date",
+        // Wear tracking
+        wear:          "wear_count",
+        outfits:       "outfits",
+        // Styling metadata
+        season:        "season",
+        occasion:      "occasion",
+        mood:          "mood",
+        styling_tags:  "styling_tags",
+        // Relation links
+        pairs:         "pairs",
+        avoids:        "avoids",
+        requires:      "requires",
+        // Freeform notes
+        notes:         "notes",
+        fitpreference: "fitpreference",
+    },
+
+    // ── Color Theory ─────────────────────────────────────────────
+    // List which colors pair WELL with each key color.
+    // Rule: if you don't want "Navy on Navy", simply don't add
+    // "Navy" inside its own array. The engine respects omissions.
     COLOR_THEORY: {
         "Black":      ["White", "Grey", "Cream", "Camel", "Red", "Pink",
                        "Cobalt", "Gold", "Silver", "Blush", "Lavender"],
@@ -58,6 +101,7 @@ const CONFIG = {
         "Gingham":    ["White", "Navy", "Black", "Red"],
     },
 
+    // ── Category Rules ───────────────────────────────────────────
     CATEGORY_RULES: {
         "tops":        ["bottoms", "outerwear", "footwear", "accessories", "bags"],
         "bottoms":     ["tops", "outerwear", "footwear", "accessories", "bags"],
@@ -73,6 +117,7 @@ const CONFIG = {
         "nightwear":   [],
     },
 
+    // ── Subcategory Overrides ────────────────────────────────────
     SUBCATEGORY_RULES: {
         "sundress":     { footwear: ["heels", "sandals", "sneakers", "mules"] },
         "maxi dress":   { footwear: ["sandals", "heels", "flats", "boots"] },
@@ -86,6 +131,7 @@ const CONFIG = {
         "jumpsuit":     { footwear: ["heels", "sandals", "sneakers"] },
     },
 
+    // ── Outfit Formulas ──────────────────────────────────────────
     OUTFIT_FORMULAS: {
         "Standard":       { slots: ["tops", "bottoms", "footwear"] },
         "One Piece":      { slots: ["full body", "footwear"] },
@@ -104,6 +150,7 @@ const CONFIG = {
                                     "footwear", "bags", "accessories"] },
     },
 
+    // ── Scoring Weights ──────────────────────────────────────────
     SCORE: {
         EXPLICIT_PAIR:    100,
         COLOR_MATCH:       50,
@@ -127,16 +174,21 @@ function asList(val) {
 
 function lc(v) { return String(v || "").toLowerCase().trim(); }
 
-/** Title-case a single word */
-function toTitleCase(word) {
-    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+/**
+ * Read a frontmatter property from a page using a CONFIG.keys alias.
+ * fk(page, "category")  →  page[CONFIG.keys.category]
+ * This is the ONLY place raw frontmatter names appear in the engine.
+ */
+function fk(page, alias) { return page[CONFIG.keys[alias]]; }
+
+function toTitleCase(w) {
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
 }
 
 /**
  * Flatten a frontmatter value (string or array) into a clean
  * title-cased phrase with no commas.
  * "crew neck,pullover,long sleeve" → "Crew Neck Pullover Long Sleeve"
- * ["crew neck", "pullover"]       → "Crew Neck Pullover"
  */
 function cleanStyleField(val) {
     if (!val) return "";
@@ -151,10 +203,10 @@ function cleanStyleField(val) {
 
 /** Display name: "Brand Style Subcategory" */
 function displayName(p) {
-    const brand  = p.brand  ? String(p.brand).trim() : "";
-    const style  = cleanStyleField(p.clothingstyle);
-    const subcat = p.clothingsubcategory
-        ? String(p.clothingsubcategory).split(/\s+/).map(toTitleCase).join(" ")
+    const brand  = fk(p, "brand") ? String(fk(p, "brand")).trim() : "";
+    const style  = cleanStyleField(fk(p, "style"));
+    const subcat = fk(p, "subcategory")
+        ? String(fk(p, "subcategory")).split(/\s+/).map(toTitleCase).join(" ")
         : "";
     return [brand, style, subcat].filter(Boolean).join(" ")
         || p.file.name.replace(/\.md$/, "");
@@ -220,48 +272,48 @@ function scoreCandidate(hero, candidate, wearableOnly) {
     if (candidate.file.path === hero.file.path) return null;
 
     if (wearableOnly) {
-        const s = lc(candidate.clothingstatus);
+        const s = lc(fk(candidate, "status"));
         if (s === "hamper" || s === "laundry" ||
             s === "donate"  || s === "repair") return null;
     }
 
-    const heroAvoids = linkPaths(hero.avoids);
-    const candAvoids = linkPaths(candidate.avoids);
+    const heroAvoids = linkPaths(fk(hero, "avoids"));
+    const candAvoids = linkPaths(fk(candidate, "avoids"));
     if (fileMatchesAny(candidate.file.path, heroAvoids)) return null;
     if (fileMatchesAny(hero.file.path, candAvoids))      return null;
 
     let score = 0;
     const reasons = [];
 
-    const heroPairs = linkPaths(hero.pairs);
+    const heroPairs = linkPaths(fk(hero, "pairs"));
     if (fileMatchesAny(candidate.file.path, heroPairs)) {
         score += CONFIG.SCORE.EXPLICIT_PAIR;
         reasons.push(`+${CONFIG.SCORE.EXPLICIT_PAIR} paired`);
     }
 
-    const hColors = asList(hero.color);
-    const cColors = asList(candidate.color);
+    const hColors = asList(fk(hero, "color"));
+    const cColors = asList(fk(candidate, "color"));
     if (hColors.length && cColors.length &&
         colorTheoryMatch(hColors, cColors, CONFIG.COLOR_THEORY)) {
         score += CONFIG.SCORE.COLOR_MATCH;
         reasons.push(`+${CONFIG.SCORE.COLOR_MATCH} color`);
     }
 
-    const moodHits = countOverlap(asList(hero.mood), asList(candidate.mood));
+    const moodHits = countOverlap(asList(fk(hero, "mood")), asList(fk(candidate, "mood")));
     if (moodHits) {
         const pts = moodHits * CONFIG.SCORE.MOOD_OVERLAP;
         score += pts;
         reasons.push(`+${pts} mood`);
     }
 
-    const occHits = countOverlap(asList(hero.occasion), asList(candidate.occasion));
+    const occHits = countOverlap(asList(fk(hero, "occasion")), asList(fk(candidate, "occasion")));
     if (occHits) {
         const pts = occHits * CONFIG.SCORE.OCCASION_OVERLAP;
         score += pts;
         reasons.push(`+${pts} occasion`);
     }
 
-    const seasonHits = countOverlap(asList(hero.season), asList(candidate.season));
+    const seasonHits = countOverlap(asList(fk(hero, "season")), asList(fk(candidate, "season")));
     if (seasonHits) {
         const pts = seasonHits * CONFIG.SCORE.SEASON_OVERLAP;
         score += pts;
@@ -283,9 +335,9 @@ function collectUnique(prop) {
     return [...s].sort();
 }
 
-const ALL_SEASONS   = collectUnique("season");
-const ALL_MOODS     = collectUnique("mood");
-const ALL_OCCASIONS = collectUnique("occasion");
+const ALL_SEASONS   = collectUnique(CONFIG.keys.season);
+const ALL_MOODS     = collectUnique(CONFIG.keys.mood);
+const ALL_OCCASIONS = collectUnique(CONFIG.keys.occasion);
 
 const state = {
     heroPage:       null,
@@ -307,8 +359,8 @@ function updateSuggestions() {
     if (!state.heroPage) { state.slots = {}; return; }
 
     const formula  = CONFIG.OUTFIT_FORMULAS[state.filterFormula];
-    const heroCat  = lc(state.heroPage.clothingcategory);
-    const heroSub  = lc(state.heroPage.clothingsubcategory || "");
+    const heroCat  = lc(fk(state.heroPage, "category"));
+    const heroSub  = lc(fk(state.heroPage, "subcategory") || "");
 
     const skipCats = heroCat === "full body" ? ["tops", "bottoms", heroCat] : [heroCat];
     const needed   = formula.slots.filter(s => !skipCats.includes(s));
@@ -316,35 +368,35 @@ function updateSuggestions() {
     state.slots = {};
 
     needed.forEach(slotCat => {
-        let pool = allPages.filter(p => lc(p.clothingcategory) === slotCat);
+        let pool = allPages.filter(p => lc(fk(p, "category")) === slotCat);
 
         if (state.filterSeason.length) {
             const active = state.filterSeason.map(lc);
             pool = pool.filter(p =>
-                asList(p.season).some(s => active.includes(lc(s))));
+                asList(fk(p, "season")).some(s => active.includes(lc(s))));
         }
         if (state.filterMood.length) {
             const active = state.filterMood.map(lc);
             pool = pool.filter(p =>
-                asList(p.mood).some(m => active.includes(lc(m))));
+                asList(fk(p, "mood")).some(m => active.includes(lc(m))));
         }
         if (state.filterOccasion.length) {
             const active = state.filterOccasion.map(lc);
             pool = pool.filter(p =>
-                asList(p.occasion).some(o => active.includes(lc(o))));
+                asList(fk(p, "occasion")).some(o => active.includes(lc(o))));
         }
 
         if (formula.seasons && formula.seasons.length) {
             const fSeasons = formula.seasons.map(lc);
             pool = pool.filter(p =>
-                asList(p.season).some(s => fSeasons.includes(lc(s))));
+                asList(fk(p, "season")).some(s => fSeasons.includes(lc(s))));
         }
 
         const subRule = CONFIG.SUBCATEGORY_RULES[heroSub];
         if (subRule && subRule[slotCat]) {
             const preferred = subRule[slotCat].map(lc);
             const prefPool  = pool.filter(p =>
-                preferred.includes(lc(p.clothingsubcategory)));
+                preferred.includes(lc(fk(p, "subcategory"))));
             if (prefPool.length > 0) pool = prefPool;
         }
 
@@ -370,7 +422,7 @@ function resolveRequires() {
 
     while (queue.length) {
         const page     = queue.shift();
-        const reqPaths = linkPaths(page.requires);
+        const reqPaths = linkPaths(fk(page, "requires"));
 
         for (const rPath of reqPaths) {
             const reqPage = allPages.find(p => fileMatchesAny(p.file.path, [rPath]));
@@ -378,7 +430,7 @@ function resolveRequires() {
             visited.add(reqPage.file.path);
 
             state.requiredPaths.add(reqPage.file.path);
-            const cat = lc(reqPage.clothingcategory);
+            const cat = lc(fk(reqPage, "category"));
 
             if (!state.slots[cat]) {
                 state.slots[cat] = { candidates: [], index: 0, locked: false };
@@ -388,11 +440,7 @@ function resolveRequires() {
             slot.candidates = slot.candidates.filter(
                 c => c.page.file.path !== reqPage.file.path
             );
-            slot.candidates.unshift({
-                page:    reqPage,
-                score:   999,
-                reasons: ["required"],
-            });
+            slot.candidates.unshift({ page: reqPage, score: 999, reasons: ["required"] });
             slot.index  = 0;
             slot.locked = true;
 
@@ -405,7 +453,7 @@ function pickRandomHero() {
     let pool = allPages;
     if (state.wearableOnly) {
         pool = pool.filter(p => {
-            const s = lc(p.clothingstatus);
+            const s = lc(fk(p, "status"));
             return s !== "hamper" && s !== "laundry" &&
                    s !== "donate" && s !== "repair";
         });
@@ -413,17 +461,17 @@ function pickRandomHero() {
     if (state.filterSeason.length) {
         const active = state.filterSeason.map(lc);
         pool = pool.filter(p =>
-            asList(p.season).some(s => active.includes(lc(s))));
+            asList(fk(p, "season")).some(s => active.includes(lc(s))));
     }
     if (state.filterMood.length) {
         const active = state.filterMood.map(lc);
         pool = pool.filter(p =>
-            asList(p.mood).some(m => active.includes(lc(m))));
+            asList(fk(p, "mood")).some(m => active.includes(lc(m))));
     }
     if (state.filterOccasion.length) {
         const active = state.filterOccasion.map(lc);
         pool = pool.filter(p =>
-            asList(p.occasion).some(o => active.includes(lc(o))));
+            asList(fk(p, "occasion")).some(o => active.includes(lc(o))));
     }
     if (!pool.length) { showToast("No items match the active filters."); return; }
     state.heroPage = pool[Math.floor(Math.random() * pool.length)];
@@ -438,14 +486,15 @@ async function logOutfit() {
     if (!state.heroPage) return;
 
     const formula     = CONFIG.OUTFIT_FORMULAS[state.filterFormula];
-    const heroCat     = lc(state.heroPage.clothingcategory);
+    const heroCat     = lc(fk(state.heroPage, "category"));
     const skipCats    = heroCat === "full body" ? ["tops", "bottoms", heroCat] : [heroCat];
     const activeSlots = formula.slots.filter(s => !skipCats.includes(s));
 
-    // Include both formula slots and any extra required slots
     const allSlotCats = [
         ...activeSlots,
-        ...Object.keys(state.slots).filter(cat => !activeSlots.includes(cat) && !skipCats.includes(cat))
+        ...Object.keys(state.slots).filter(
+            cat => !activeSlots.includes(cat) && !skipCats.includes(cat)
+        ),
     ];
 
     const outfitPages = allSlotCats
@@ -467,10 +516,12 @@ async function logOutfit() {
                 .join(", ");
 
             await app.fileManager.processFrontMatter(page.file, fm => {
-                fm.wear_count = (parseInt(fm.wear_count) || 0) + 1;
-                if (!fm.outfits) fm.outfits = [];
-                if (!Array.isArray(fm.outfits)) fm.outfits = [fm.outfits];
-                fm.outfits.push(`${today}: Worn with ${others}`);
+                fm[CONFIG.keys.wear] = (parseInt(fm[CONFIG.keys.wear]) || 0) + 1;
+                if (!fm[CONFIG.keys.outfits])
+                    fm[CONFIG.keys.outfits] = [];
+                if (!Array.isArray(fm[CONFIG.keys.outfits]))
+                    fm[CONFIG.keys.outfits] = [fm[CONFIG.keys.outfits]];
+                fm[CONFIG.keys.outfits].push(`${today}: Worn with ${others}`);
             });
         }
         showToast(`Outfit logged — ${allInFit.length} items updated.`);
@@ -504,7 +555,6 @@ function buildHeader() {
 
     const right = make("div", "ws-header__right");
 
-    // Wearable toggle
     const wLabel = make("label", "ws-wearable-label");
     wLabel.title = "When on, only Clean items appear";
 
@@ -531,7 +581,6 @@ function buildHeader() {
     wLabel.appendChild(wText);
     right.appendChild(wLabel);
 
-    // Debug toggle
     const dLabel = make("label", "ws-debug-label");
     dLabel.title = "Show scoring breakdown on suggestion cards";
     const dCb = document.createElement("input");
@@ -634,7 +683,6 @@ function refreshCanvas() {
     if (!$canvas) return;
     $canvas.innerHTML = "";
 
-    // ── Hero panel ──
     const heroPanel = make("div", "ws-panel ws-panel--hero");
 
     if (state.heroPage) {
@@ -649,7 +697,6 @@ function refreshCanvas() {
     heroPanel.appendChild(buildHeroSelector());
     $canvas.appendChild(heroPanel);
 
-    // ── Suggestion panel ──
     const suggPanel = make("div", "ws-panel ws-panel--suggestions");
 
     if (!state.heroPage) {
@@ -658,7 +705,7 @@ function refreshCanvas() {
         suggPanel.appendChild(hint);
     } else {
         const formula     = CONFIG.OUTFIT_FORMULAS[state.filterFormula];
-        const heroCat     = lc(state.heroPage.clothingcategory);
+        const heroCat     = lc(fk(state.heroPage, "category"));
         const skipCats    = heroCat === "full body" ? ["tops", "bottoms", heroCat] : [heroCat];
         const activeSlots = formula.slots.filter(s => !skipCats.includes(s));
 
@@ -668,8 +715,7 @@ function refreshCanvas() {
             suggPanel.appendChild(hint);
         } else {
             activeSlots.forEach(slotCat => {
-                const slotData = state.slots[slotCat];
-
+                const slotData  = state.slots[slotCat];
                 const slotWrap  = make("div", "ws-slot");
                 const slotLabel = make("div", "ws-slot-label");
                 slotLabel.textContent = slotCat;
@@ -685,12 +731,11 @@ function refreshCanvas() {
                     const item   = slotData.candidates[idx];
                     const locked = slotData.locked;
 
-                    const cardEl = buildCard(
+                    slotWrap.appendChild(buildCard(
                         item.page, item.score, item.reasons, false,
                         locked ? null : () => { slotData.index++; refreshCanvas(); },
                         state.requiredPaths.has(item.page.file.path)
-                    );
-                    slotWrap.appendChild(cardEl);
+                    ));
 
                     if (total > 1 && !locked) {
                         const counter = make("div", "ws-slot-counter");
@@ -702,30 +747,26 @@ function refreshCanvas() {
                 suggPanel.appendChild(slotWrap);
             });
 
-            // Extra slots added by requires resolution
-            const extraSlotCats = Object.keys(state.slots).filter(
-                cat => !activeSlots.includes(cat) && !skipCats.includes(cat)
-            );
-            extraSlotCats.forEach(slotCat => {
-                const slotData = state.slots[slotCat];
-                if (!slotData || !slotData.candidates.length) return;
+            // Extra slots injected by requires resolution
+            Object.keys(state.slots)
+                .filter(cat => !activeSlots.includes(cat) && !skipCats.includes(cat))
+                .forEach(slotCat => {
+                    const slotData = state.slots[slotCat];
+                    if (!slotData || !slotData.candidates.length) return;
 
-                const slotWrap  = make("div", "ws-slot");
-                const slotLabel = make("div", "ws-slot-label ws-slot-label--required");
-                slotLabel.textContent = slotCat;
-                slotLabel.title = "Added automatically by a requires rule";
-                slotWrap.appendChild(slotLabel);
+                    const slotWrap  = make("div", "ws-slot");
+                    const slotLabel = make("div", "ws-slot-label ws-slot-label--required");
+                    slotLabel.textContent = slotCat;
+                    slotLabel.title = "Added automatically by a requires rule";
+                    slotWrap.appendChild(slotLabel);
 
-                const idx  = slotData.index % slotData.candidates.length;
-                const item = slotData.candidates[idx];
-
-                slotWrap.appendChild(buildCard(item.page, item.score, item.reasons, false, null, true));
-                suggPanel.appendChild(slotWrap);
-            });
+                    const item = slotData.candidates[slotData.index % slotData.candidates.length];
+                    slotWrap.appendChild(buildCard(item.page, item.score, item.reasons, false, null, true));
+                    suggPanel.appendChild(slotWrap);
+                });
         }   // end else (activeSlots exist)
 
-        const logBtn = makeBtn("Log Outfit", "ws-btn ws-btn--log", () => logOutfit());
-        $canvas.appendChild(logBtn);
+        $canvas.appendChild(makeBtn("Log Outfit", "ws-btn ws-btn--log", () => logOutfit()));
     }
 
     $canvas.appendChild(suggPanel);
@@ -743,7 +784,7 @@ function buildHeroSelector() {
 
     let heroPool = state.wearableOnly
         ? allPages.filter(p => {
-              const s = lc(p.clothingstatus);
+              const s = lc(fk(p, "status"));
               return s !== "hamper" && s !== "laundry" &&
                      s !== "donate" && s !== "repair";
           })
@@ -751,7 +792,7 @@ function buildHeroSelector() {
 
     const grouped = {};
     heroPool.forEach(p => {
-        const cat = p.clothingcategory || "Uncategorized";
+        const cat = fk(p, "category") || "Uncategorized";
         (grouped[cat] = grouped[cat] || []).push(p);
     });
 
@@ -786,11 +827,11 @@ function buildHeroSelector() {
 
 // ── Card ─────────────────────────────────────────────────────────
 function buildCard(page, score, reasons, isHero, onShuffle, isRequired = false) {
-    const imgSrc = resolveImage(page.image);
+    const imgSrc = resolveImage(fk(page, "image"));
     const name   = displayName(page);
-    const size   = page.size ? `Size ${page.size}` : "";
-    const colors = asList(page.color).join(", ");
-    const tags   = asList(page.styling_tags).join("  ·  ");
+    const size   = fk(page, "size")         ? `Size ${fk(page, "size")}` : "";
+    const colors = asList(fk(page, "color")).join(", ");
+    const tags   = asList(fk(page, "styling_tags")).join("  ·  ");
 
     const card = make("div", "ws-card" + (isHero ? " ws-card--hero" : ""));
 
@@ -887,7 +928,6 @@ const CSS = `
     padding: 2px 2px 24px;
     line-height: 1.5;
 }
-
 /* ── Header ───────────────────────────────────────── */
 .ws-header {
     display: flex;
@@ -905,389 +945,198 @@ const CSS = `
     text-transform: uppercase;
     color: var(--text-muted);
 }
-.ws-header__icon {
-    font-size: 11px;
-    opacity: 0.5;
-    margin-right: 2px;
-}
-.ws-header__right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-
+.ws-header__icon { font-size: 11px; opacity: 0.5; margin-right: 2px; }
+.ws-header__right { display: flex; align-items: center; gap: 16px; }
 /* ── Wearable toggle ──────────────────────────────── */
 .ws-wearable-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    user-select: none;
-    font-size: 11px;
-    font-family: -apple-system, sans-serif;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    display: flex; align-items: center; gap: 6px;
+    cursor: pointer; user-select: none;
+    font-size: 11px; font-family: -apple-system, sans-serif;
+    letter-spacing: 0.04em; text-transform: uppercase;
     color: var(--text-muted);
 }
 .ws-wearable-dot {
-    width: 16px; height: 16px;
-    border-radius: 50%;
+    width: 16px; height: 16px; border-radius: 50%;
     border: 1.5px solid var(--background-modifier-border);
     display: inline-block;
     transition: background 0.15s, border-color 0.15s;
     flex-shrink: 0;
 }
 .ws-wearable-dot--on {
-    background: #5aaf87;
-    border-color: #5aaf87;
+    background: #5aaf87; border-color: #5aaf87;
     box-shadow: 0 0 0 2px rgba(90,175,135,0.18);
 }
 .ws-wearable-text { color: var(--text-faint); }
-
 /* ── Debug toggle ─────────────────────────────────── */
 .ws-debug-label {
     font-family: -apple-system, sans-serif;
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--text-faint);
-    cursor: pointer;
-    user-select: none;
+    font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--text-faint); cursor: pointer; user-select: none;
     border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
-    padding: 3px 8px;
+    border-radius: 4px; padding: 3px 8px;
     transition: color 0.12s, border-color 0.12s;
 }
-.ws-debug-label:hover {
-    color: var(--text-muted);
-    border-color: var(--text-faint);
-}
-
+.ws-debug-label:hover { color: var(--text-muted); border-color: var(--text-faint); }
 /* ── Filters ──────────────────────────────────────── */
 .ws-filters {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 12px 20px;
-    padding-bottom: 16px;
+    display: flex; flex-wrap: wrap; align-items: flex-end;
+    gap: 12px 20px; padding-bottom: 16px;
     border-bottom: 1px solid var(--background-modifier-border);
     margin-bottom: 22px;
 }
-.ws-filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
+.ws-filter-group { display: flex; flex-direction: column; gap: 6px; }
 .ws-filter-label {
     font-family: -apple-system, sans-serif;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-faint);
+    font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-faint);
 }
-.ws-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-}
+.ws-pills { display: flex; flex-wrap: wrap; gap: 5px; }
 .ws-pill {
-    font-family: -apple-system, sans-serif;
-    font-size: 11px;
-    padding: 3px 11px;
-    border-radius: 20px;
+    font-family: -apple-system, sans-serif; font-size: 11px;
+    padding: 3px 11px; border-radius: 20px;
     border: 1px solid var(--background-modifier-border);
-    background: transparent;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.12s;
-    line-height: 1.7;
-    white-space: nowrap;
+    background: transparent; color: var(--text-muted);
+    cursor: pointer; transition: all 0.12s; line-height: 1.7; white-space: nowrap;
 }
-.ws-pill:hover {
-    border-color: var(--interactive-accent);
-    color: var(--interactive-accent);
-}
+.ws-pill:hover { border-color: var(--interactive-accent); color: var(--interactive-accent); }
 .ws-pill--on {
     background: var(--interactive-accent);
-    border-color: var(--interactive-accent);
-    color: #fff !important;
+    border-color: var(--interactive-accent); color: #fff !important;
 }
 .ws-select {
-    font-family: -apple-system, sans-serif;
-    font-size: 12px;
-    padding: 5px 10px;
-    border-radius: 6px;
+    font-family: -apple-system, sans-serif; font-size: 12px;
+    padding: 5px 10px; border-radius: 6px;
     border: 1px solid var(--background-modifier-border);
-    background: var(--background-primary);
-    color: var(--text-normal);
-    cursor: pointer;
-    outline: none;
-    min-width: 130px;
+    background: var(--background-primary); color: var(--text-normal);
+    cursor: pointer; outline: none; min-width: 130px;
 }
 .ws-btn--random {
-    font-family: -apple-system, sans-serif;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 5px 14px;
-    border-radius: 4px;
+    font-family: -apple-system, sans-serif; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 5px 14px; border-radius: 4px;
     border: 1px solid var(--background-modifier-border);
-    background: transparent;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.12s;
-    align-self: flex-end;
+    background: transparent; color: var(--text-muted);
+    cursor: pointer; transition: all 0.12s; align-self: flex-end;
 }
-.ws-btn--random:hover {
-    border-color: var(--text-muted);
-    color: var(--text-normal);
-}
-
+.ws-btn--random:hover { border-color: var(--text-muted); color: var(--text-normal); }
 /* ── Canvas ───────────────────────────────────────── */
 .ws-canvas {
     display: grid;
     grid-template-columns: 220px 1fr;
     grid-template-rows: auto auto;
-    column-gap: 28px;
-    row-gap: 14px;
-    align-items: start;
+    column-gap: 28px; row-gap: 14px; align-items: start;
 }
-.ws-panel--hero {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-.ws-panel--suggestions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    align-items: flex-start;
-}
-
+.ws-panel--hero { display: flex; flex-direction: column; gap: 10px; }
+.ws-panel--suggestions { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
 /* ── Cards ────────────────────────────────────────── */
 .ws-card {
-    position: relative;
-    width: 152px;
-    border-radius: 10px;
-    overflow: hidden;
-    border: 1px solid var(--background-modifier-border);
-    background: var(--background-primary);
-    flex-shrink: 0;
+    position: relative; width: 152px; border-radius: 10px;
+    overflow: hidden; border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary); flex-shrink: 0;
     transition: box-shadow 0.15s, transform 0.15s;
 }
-.ws-card:hover {
-    box-shadow: 0 6px 22px rgba(0,0,0,0.09);
-    transform: translateY(-1px);
-}
+.ws-card:hover { box-shadow: 0 6px 22px rgba(0,0,0,0.09); transform: translateY(-1px); }
 .ws-card--hero { width: 200px; }
 .ws-card__img {
-    width: 100%;
-    height: 200px;
-    background-size: cover;
-    background-position: center top;
+    width: 100%; height: 200px;
+    background-size: cover; background-position: center top;
     background-color: var(--background-secondary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
 }
 .ws-card--hero .ws-card__img { height: 264px; }
-.ws-card__no-img {
-    font-size: 32px;
-    opacity: 0.18;
-}
+.ws-card__no-img { font-size: 32px; opacity: 0.18; }
 .ws-card__info { padding: 9px 11px 11px; }
 .ws-card__title {
-    font-family: "Georgia", serif;
-    font-size: 12px;
-    color: var(--text-normal);
-    line-height: 1.4;
-    margin-bottom: 3px;
+    font-family: "Georgia", serif; font-size: 12px;
+    color: var(--text-normal); line-height: 1.4; margin-bottom: 3px;
 }
-.ws-card__meta {
-    font-family: -apple-system, sans-serif;
-    font-size: 10px;
-    color: var(--text-muted);
-    margin-bottom: 2px;
-}
-.ws-card__tags {
-    font-family: -apple-system, sans-serif;
-    font-size: 10px;
-    color: var(--text-faint);
-    font-style: italic;
-}
-
+.ws-card__meta { font-family: -apple-system, sans-serif; font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+.ws-card__tags { font-family: -apple-system, sans-serif; font-size: 10px; color: var(--text-faint); font-style: italic; }
 /* ── Required badge ───────────────────────────────── */
 .ws-required-badge {
-    position: absolute;
-    top: 8px; left: 8px;
-    background: rgba(180, 120, 60, 0.88);
-    color: #fff;
-    font-family: -apple-system, sans-serif;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding: 2px 7px;
-    border-radius: 10px;
-    backdrop-filter: blur(4px);
-    pointer-events: none;
+    position: absolute; top: 8px; left: 8px;
+    background: rgba(180, 120, 60, 0.88); color: #fff;
+    font-family: -apple-system, sans-serif; font-size: 9px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 10px;
+    backdrop-filter: blur(4px); pointer-events: none;
 }
 .ws-slot-label--required { color: rgba(180, 120, 60, 0.8); }
 .ws-slot-label--required::after { content: "  ✦"; opacity: 0.6; }
-
 /* ── Score badge ──────────────────────────────────── */
 .ws-score-badge {
-    position: absolute;
-    top: 8px; right: 8px;
-    background: rgba(0,0,0,0.58);
-    color: #fff;
-    font-family: -apple-system, sans-serif;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 10px;
-    backdrop-filter: blur(4px);
-    cursor: help;
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(0,0,0,0.58); color: #fff;
+    font-family: -apple-system, sans-serif; font-size: 10px; font-weight: 700;
+    padding: 2px 7px; border-radius: 10px;
+    backdrop-filter: blur(4px); cursor: help;
 }
-
 /* ── Shuffle button ───────────────────────────────── */
 .ws-shuffle-btn {
-    position: absolute;
-    bottom: 44px; right: 8px;
-    width: 26px; height: 26px;
-    border-radius: 50%;
+    position: absolute; bottom: 44px; right: 8px;
+    width: 26px; height: 26px; border-radius: 50%;
     border: 1px solid var(--background-modifier-border);
-    background: var(--background-primary);
-    color: var(--text-muted);
-    font-size: 14px;
-    cursor: pointer;
+    background: var(--background-primary); color: var(--text-muted);
+    font-size: 14px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    padding: 0;
-    transition: all 0.12s;
-    opacity: 0;
+    padding: 0; transition: all 0.12s; opacity: 0;
 }
 .ws-card:hover .ws-shuffle-btn { opacity: 1; }
-.ws-shuffle-btn:hover {
-    background: var(--interactive-accent);
-    border-color: var(--interactive-accent);
-    color: #fff;
-}
-
+.ws-shuffle-btn:hover { background: var(--interactive-accent); border-color: var(--interactive-accent); color: #fff; }
 /* ── Hero selector ────────────────────────────────── */
 .ws-hero-selector { width: 100%; }
 .ws-select--hero  { width: 100%; }
-
 /* ── Card placeholder ─────────────────────────────── */
 .ws-card-placeholder {
-    width: 200px;
-    height: 264px;
-    border-radius: 10px;
+    width: 200px; height: 264px; border-radius: 10px;
     border: 1.5px dashed var(--background-modifier-border);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    background: var(--background-secondary);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; background: var(--background-secondary);
 }
 .ws-placeholder-icon { font-size: 28px; opacity: 0.15; }
 .ws-placeholder-text {
-    font-family: -apple-system, sans-serif;
-    font-size: 11px;
-    color: var(--text-faint);
-    text-align: center;
-    margin: 0;
-    line-height: 1.6;
+    font-family: -apple-system, sans-serif; font-size: 11px;
+    color: var(--text-faint); text-align: center; margin: 0; line-height: 1.6;
 }
-
 /* ── Slot ─────────────────────────────────────────── */
-.ws-slot {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-}
+.ws-slot { display: flex; flex-direction: column; align-items: center; gap: 5px; }
 .ws-slot-label {
-    font-family: -apple-system, sans-serif;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-faint);
-    align-self: flex-start;
+    font-family: -apple-system, sans-serif; font-size: 9px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-faint); align-self: flex-start;
 }
-.ws-slot-counter {
-    font-family: -apple-system, sans-serif;
-    font-size: 10px;
-    color: var(--text-faint);
-}
+.ws-slot-counter { font-family: -apple-system, sans-serif; font-size: 10px; color: var(--text-faint); }
 .ws-slot-empty {
-    width: 152px;
-    min-height: 80px;
-    border-radius: 8px;
+    width: 152px; min-height: 80px; border-radius: 8px;
     background: var(--background-secondary);
     border: 1px dashed var(--background-modifier-border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: -apple-system, sans-serif;
-    font-size: 11px;
-    color: var(--text-faint);
-    font-style: italic;
-    padding: 10px;
-    text-align: center;
+    display: flex; align-items: center; justify-content: center;
+    font-family: -apple-system, sans-serif; font-size: 11px;
+    color: var(--text-faint); font-style: italic; padding: 10px; text-align: center;
 }
-
 /* ── Log outfit button ────────────────────────────── */
 .ws-btn--log {
-    grid-column: 1 / -1;
-    justify-self: end;
-    font-family: -apple-system, sans-serif;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 5px 14px;
-    border-radius: 4px;
+    grid-column: 1 / -1; justify-self: end;
+    font-family: -apple-system, sans-serif; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 5px 14px; border-radius: 4px;
     border: 1px solid var(--background-modifier-border);
-    background: transparent;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.12s;
-    align-self: start;
+    background: transparent; color: var(--text-muted);
+    cursor: pointer; transition: all 0.12s; align-self: start;
 }
-.ws-btn--log:hover {
-    border-color: var(--text-muted);
-    color: var(--text-normal);
-}
-
+.ws-btn--log:hover { border-color: var(--text-muted); color: var(--text-normal); }
 /* ── Hint ─────────────────────────────────────────── */
 .ws-hint {
-    font-family: -apple-system, sans-serif;
-    font-size: 12px;
-    color: var(--text-faint);
-    font-style: italic;
-    margin: 0;
-    align-self: center;
+    font-family: -apple-system, sans-serif; font-size: 12px;
+    color: var(--text-faint); font-style: italic; margin: 0; align-self: center;
 }
-
 /* ── Toast ────────────────────────────────────────── */
 .ws-toast {
-    position: fixed;
-    bottom: 22px; right: 22px;
-    background: #2b2b2b;
-    color: #fff;
-    font-family: -apple-system, sans-serif;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 10px 18px;
-    border-radius: 8px;
-    z-index: 9999;
-    transition: opacity 0.3s;
-    opacity: 1;
-    pointer-events: none;
+    position: fixed; bottom: 22px; right: 22px;
+    background: #2b2b2b; color: #fff;
+    font-family: -apple-system, sans-serif; font-size: 12px; font-weight: 500;
+    padding: 10px 18px; border-radius: 8px; z-index: 9999;
+    transition: opacity 0.3s; opacity: 1; pointer-events: none;
 }
 .ws-toast--error { background: #b94040; }
 .ws-toast--out   { opacity: 0; }
