@@ -1,3 +1,4 @@
+```dataviewjs
 // ╔══════════════════════════════════════════════════════════════╗
 //  🌸  WARDROBE STYLIST  —  DataviewJS
 //  Place this note anywhere; set itemsFolder below to match your
@@ -11,7 +12,7 @@
 const CONFIG = {
 
     // Path to your clothing item notes (no leading/trailing slash)
-    itemsFolder: "Life/Wardrobe/Items",
+    itemsFolder: "Items",
 
     // ── Color Theory ─────────────────────────────────────────────
     // List which colors pair WELL with each key color.
@@ -790,6 +791,8 @@ function refreshCanvas() {
                 slotWrap.appendChild(cardEl);
                 suggPanel.appendChild(slotWrap);
             });
+        }   // end else (activeSlots exist)
+
         const logBtn = makeBtn("📋  Log Outfit", "ws-btn ws-btn--log", () => logOutfit());
         $canvas.appendChild(logBtn);
     }
@@ -1395,3 +1398,4 @@ const ROOT = dv.container;
 ROOT.className = "ws-root";
 
 render();
+```
