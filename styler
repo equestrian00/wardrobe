@@ -149,10 +149,37 @@ function asList(val) {
 /** Lowercase + trim a single value */
 function lc(v) { return String(v || "").toLowerCase().trim(); }
 
+/** Title-case a single word */
+function toTitleCase(word) {
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+}
+
+/**
+ * Flatten a frontmatter value (string or array) into a clean
+ * title-cased phrase with no commas.
+ * "crew neck,pullover,long sleeve" → "Crew Neck Pullover Long Sleeve"
+ * ["crew neck", "pullover"] → "Crew Neck Pullover"
+ */
+function cleanStyleField(val) {
+    if (!val) return "";
+    const parts = Array.isArray(val) ? val : [val];
+    return parts
+        .flatMap(s => String(s).split(","))          // split on commas
+        .map(s => s.trim())
+        .filter(Boolean)
+        .map(phrase => phrase.split(/\s+/).map(toTitleCase).join(" "))
+        .join(" ");
+}
+
 /** Display name: "Brand Style Subcategory" */
 function displayName(p) {
-    return [p.brand, p.clothingstyle, p.clothingsubcategory]
-        .filter(Boolean).map(s => String(s).trim()).join(" ") || p.file.name.replace(/\.md$/, "");
+    const brand    = p.brand    ? String(p.brand).trim() : "";
+    const style    = cleanStyleField(p.clothingstyle);
+    const subcat   = p.clothingsubcategory
+        ? String(p.clothingsubcategory).split(/\s+/).map(toTitleCase).join(" ")
+        : "";
+    return [brand, style, subcat].filter(Boolean).join(" ")
+        || p.file.name.replace(/\.md$/, "");
 }
 
 /** Resolve an image frontmatter value to a usable src URL */
@@ -646,7 +673,7 @@ function buildFilters() {
     el.appendChild(formulaGroup);
 
     // Random button
-    const rndBtn = makeBtn("🎲  Random", "ws-btn ws-btn--random", () => {
+    const rndBtn = makeBtn("Random", "ws-btn ws-btn--random", () => {
         pickRandomHero();
         render();
     });
@@ -793,7 +820,7 @@ function refreshCanvas() {
             });
         }   // end else (activeSlots exist)
 
-        const logBtn = makeBtn("📋  Log Outfit", "ws-btn ws-btn--log", () => logOutfit());
+        const logBtn = makeBtn("Log Outfit", "ws-btn ws-btn--log", () => logOutfit());
         $canvas.appendChild(logBtn);
     }
 
@@ -1105,21 +1132,22 @@ const CSS = `
 }
 .ws-btn--random {
     font-family: -apple-system, sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 6px 16px;
-    border-radius: 7px;
-    border: 1.5px solid var(--interactive-accent);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 5px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
     background: transparent;
-    color: var(--interactive-accent);
+    color: var(--text-muted);
     cursor: pointer;
-    letter-spacing: 0.02em;
     transition: all 0.12s;
     align-self: flex-end;
 }
 .ws-btn--random:hover {
-    background: var(--interactive-accent);
-    color: #fff;
+    border-color: var(--text-muted);
+    color: var(--text-normal);
 }
 
 /* ── Canvas ───────────────────────────────────────── */
@@ -1336,19 +1364,23 @@ const CSS = `
     grid-column: 1 / -1;
     justify-self: end;
     font-family: -apple-system, sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 7px 18px;
-    border-radius: 7px;
-    border: 1.5px solid var(--interactive-accent);
-    background: var(--interactive-accent);
-    color: #fff;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 5px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+    background: transparent;
+    color: var(--text-muted);
     cursor: pointer;
-    letter-spacing: 0.02em;
-    transition: opacity 0.12s;
+    transition: all 0.12s;
     align-self: start;
 }
-.ws-btn--log:hover { opacity: 0.84; }
+.ws-btn--log:hover {
+    border-color: var(--text-muted);
+    color: var(--text-normal);
+}
 
 /* ── Hint ─────────────────────────────────────────── */
 .ws-hint {
