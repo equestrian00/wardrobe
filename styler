@@ -1,0 +1,1397 @@
+// ╔══════════════════════════════════════════════════════════════╗
+//  🌸  WARDROBE STYLIST  —  DataviewJS
+//  Place this note anywhere; set itemsFolder below to match your
+//  vault path for clothing items.
+// ╚══════════════════════════════════════════════════════════════╝
+
+// ═══════════════════════════════════════════════════════════════
+//  ⚙️  USER CONFIGURATION  —  edit everything in this block freely
+// ═══════════════════════════════════════════════════════════════
+
+const CONFIG = {
+
+    // Path to your clothing item notes (no leading/trailing slash)
+    itemsFolder: "Life/Wardrobe/Items",
+
+    // ── Color Theory ─────────────────────────────────────────────
+    // List which colors pair WELL with each key color.
+    // Rule: if you don't want "Navy on Navy", simply don't add
+    // "Navy" inside its own array. The engine respects omissions.
+    COLOR_THEORY: {
+        "Black":      ["White", "Grey", "Cream", "Camel", "Red", "Pink",
+                       "Cobalt", "Gold", "Silver", "Blush", "Lavender"],
+        "White":      ["Black", "Navy", "Camel", "Tan", "Brown", "Gold",
+                       "Silver", "Red", "Sage", "Blush", "Cobalt"],
+        "Navy":       ["White", "Cream", "Beige", "Grey", "Red", "Gold", "Tan"],
+        "Grey":       ["White", "Black", "Navy", "Blush", "Burgundy", "Yellow"],
+        "Beige":      ["White", "Brown", "Camel", "Navy", "Black", "Tan", "Olive"],
+        "Cream":      ["Brown", "Camel", "Navy", "Black", "Gold", "Tan", "Sage"],
+        "Brown":      ["Cream", "Beige", "Tan", "White", "Camel", "Gold",
+                       "Olive", "Rust"],
+        "Tan":        ["White", "Brown", "Camel", "Beige", "Navy", "Black"],
+        "Camel":      ["White", "Cream", "Black", "Navy", "Brown", "Tan"],
+        "Red":        ["White", "Black", "Navy", "Cream", "Gold"],
+        "Burgundy":   ["White", "Cream", "Beige", "Grey", "Black", "Gold"],
+        "Pink":       ["White", "Black", "Grey", "Blush", "Gold", "Navy"],
+        "Blush":      ["White", "Cream", "Beige", "Gold", "Silver", "Grey"],
+        "Coral":      ["White", "Cream", "Gold", "Tan", "Navy"],
+        "Orange":     ["White", "Brown", "Olive", "Denim", "Cream"],
+        "Rust":       ["White", "Brown", "Camel", "Cream", "Olive", "Denim"],
+        "Yellow":     ["White", "Navy", "Grey", "Black", "Denim"],
+        "Mustard":    ["White", "Brown", "Camel", "Black", "Olive", "Denim"],
+        "Sage":       ["White", "Cream", "Tan", "Brown", "Beige", "Camel"],
+        "Olive":      ["White", "Cream", "Tan", "Brown", "Camel",
+                       "Beige", "Black", "Rust"],
+        "Green":      ["White", "Cream", "Beige", "Brown", "Gold"],
+        "Mint":       ["White", "Cream", "Gold", "Beige", "Navy"],
+        "Teal":       ["White", "Cream", "Gold", "Navy", "Brown"],
+        "Cobalt":     ["White", "Cream", "Black", "Gold"],
+        "Blue":       ["White", "Cream", "Tan", "Brown", "Gold", "Denim"],
+        "Denim":      ["White", "Black", "Grey", "Tan", "Brown", "Camel",
+                       "Rust", "Cream"],
+        "Purple":     ["White", "Cream", "Grey", "Black", "Gold"],
+        "Lavender":   ["White", "Cream", "Grey", "Silver", "Gold"],
+        "Gold":       ["Black", "White", "Navy", "Brown", "Camel",
+                       "Burgundy", "Cream"],
+        "Silver":     ["Black", "White", "Grey", "Navy", "Blush"],
+        "Leopard":    ["Black", "Camel", "Brown", "White", "Beige"],
+        "Floral":     ["White", "Black", "Beige", "Tan"],
+        "Stripe":     ["White", "Navy", "Black", "Camel"],
+        "Plaid":      ["White", "Black", "Camel", "Tan"],
+        "Gingham":    ["White", "Navy", "Black", "Red"],
+    },
+
+    // ── Category Rules ───────────────────────────────────────────
+    // When the hero is category X, which OTHER categories should
+    // appear in the suggestion slots?
+    CATEGORY_RULES: {
+        "tops":        ["bottoms", "outerwear", "footwear", "accessories", "bags"],
+        "bottoms":     ["tops", "outerwear", "footwear", "accessories", "bags"],
+        "outerwear":   ["tops", "bottoms", "footwear", "accessories"],
+        "full body":   ["outerwear", "footwear", "accessories", "bags"],
+        "swimwear":    ["accessories", "bags", "footwear"],
+        "footwear":    ["tops", "bottoms", "full body", "outerwear", "accessories"],
+        "accessories": ["tops", "bottoms", "full body", "outerwear",
+                        "footwear", "bags"],
+        "bags":        ["tops", "bottoms", "full body", "outerwear",
+                        "footwear", "accessories"],
+        "underwear":   [],
+        "nightwear":   [],
+    },
+
+    // ── Subcategory Overrides ────────────────────────────────────
+    // Fine-tune which sub-categories to prefer for a given slot
+    // when the HERO has a specific clothingsubcategory.
+    // Key  = hero's clothingsubcategory (lowercase)
+    // Value = { slotCategory: [preferred clothingsubcategory values] }
+    SUBCATEGORY_RULES: {
+        "sundress":     { footwear: ["heels", "sandals", "sneakers", "mules"] },
+        "maxi dress":   { footwear: ["sandals", "heels", "flats", "boots"] },
+        "mini skirt":   { footwear: ["heels", "boots", "sneakers"] },
+        "midi skirt":   { footwear: ["heels", "flats", "boots", "sandals"] },
+        "jeans":        { footwear: ["sneakers", "boots", "loafers", "heels"] },
+        "trousers":     { footwear: ["loafers", "heels", "boots", "sneakers"] },
+        "blazer":       { tops: ["shirt", "blouse", "turtleneck", "cami"] },
+        "shorts":       { footwear: ["sneakers", "sandals", "loafers"] },
+        "cargo pants":  { footwear: ["sneakers", "boots"] },
+        "jumpsuit":     { footwear: ["heels", "sandals", "sneakers"] },
+    },
+
+    // ── Outfit Formulas ──────────────────────────────────────────
+    // Each formula defines which category SLOTS must be filled.
+    // The hero item occupies its own slot automatically.
+    // Optional `seasons` array restricts this formula's suggestion
+    // pool to items that share at least one of those seasons.
+    OUTFIT_FORMULAS: {
+        "Standard":       { slots: ["tops", "bottoms", "footwear"] },
+        "One Piece":      { slots: ["full body", "footwear"] },
+        "Layered":        { slots: ["tops", "bottoms", "outerwear", "footwear"] },
+        "Cozy":           { slots: ["tops", "bottoms", "accessories"] },
+        "Going Out":      { slots: ["tops", "bottoms", "footwear",
+                                    "bags", "accessories"] },
+        "Warm Layers":    { slots: ["tops", "bottoms", "outerwear",
+                                    "footwear", "accessories"],
+                            seasons: ["Fall", "Winter", "Autumn"] },
+        "Summer Casual":  { slots: ["tops", "bottoms", "footwear", "bags"],
+                            seasons: ["Spring", "Summer"] },
+        "Beach Day":      { slots: ["swimwear", "footwear",
+                                    "bags", "accessories"] },
+        "Full Look":      { slots: ["tops", "bottoms", "outerwear",
+                                    "footwear", "bags", "accessories"] },
+    },
+
+    // ── Scoring Weights ──────────────────────────────────────────
+    SCORE: {
+        EXPLICIT_PAIR:    100,  // item is in hero's `pairs` list
+        COLOR_MATCH:       50,  // color theory hit
+        MOOD_OVERLAP:      20,  // per shared mood tag
+        OCCASION_OVERLAP:  20,  // per shared occasion tag
+        SEASON_OVERLAP:    15,  // per shared season tag
+    },
+
+    // ── Debug default ────────────────────────────────────────────
+    // Set true to always show score badges on load
+    debugDefault: false,
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  🛠  UTILITY HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+/** Coerce a frontmatter value to a clean string array */
+function asList(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.map(v => String(v).trim()).filter(Boolean);
+    return [String(val).trim()].filter(Boolean);
+}
+
+/** Lowercase + trim a single value */
+function lc(v) { return String(v || "").toLowerCase().trim(); }
+
+/** Display name: "Brand Style Subcategory" */
+function displayName(p) {
+    return [p.brand, p.clothingstyle, p.clothingsubcategory]
+        .filter(Boolean).map(s => String(s).trim()).join(" ") || p.file.name.replace(/\.md$/, "");
+}
+
+/** Resolve an image frontmatter value to a usable src URL */
+function resolveImage(imageProp) {
+    if (!imageProp) return null;
+    const s = String(imageProp);
+    // Wikilink  ![[file.jpg]]  or  [[file.jpg]]
+    const wm = s.match(/!?\[\[(.+?)(?:\|[^\]]+)?\]\]/);
+    if (wm) {
+        const name = wm[1];
+        const f = app.vault.getFiles().find(
+            fi => fi.name === name || fi.path === name ||
+                  fi.path.endsWith("/" + name)
+        );
+        return f ? app.vault.getResourcePath(f) : null;
+    }
+    if (/^https?:\/\//.test(s)) return s;
+    // Plain path
+    const f2 = app.vault.getAbstractFileByPath(s);
+    return f2 ? app.vault.getResourcePath(f2) : null;
+}
+
+/**
+ * Extract file paths from a frontmatter link property.
+ * DataviewJS returns Link objects with a .path; we also handle
+ * plain strings and wikilink strings.
+ */
+function linkPaths(val) {
+    if (!val) return [];
+    const arr = Array.isArray(val) ? val : [val];
+    return arr.map(l => {
+        if (l && typeof l === "object" && l.path) return l.path;
+        const s = String(l);
+        const m = s.match(/\[\[(.+?)(?:\|[^\]]+)?\]\]/);
+        return m ? m[1] : s;
+    }).filter(Boolean);
+}
+
+/** True if filePath matches any path in a link-paths array */
+function fileMatchesAny(filePath, paths) {
+    const base = filePath.replace(/\.md$/, "");
+    return paths.some(p => {
+        const pb = p.replace(/\.md$/, "");
+        return filePath === p || base === pb ||
+               filePath === p + ".md" ||
+               filePath.endsWith("/" + p) ||
+               filePath.endsWith("/" + p + ".md");
+    });
+}
+
+/** Count overlapping items (case-insensitive) between two string arrays */
+function countOverlap(a, b) {
+    const bSet = new Set(b.map(lc));
+    return a.filter(x => bSet.has(lc(x))).length;
+}
+
+/** Color-theory match: does any heroColor pair well with any candidateColor? */
+function colorTheoryMatch(heroColors, candColors, theory) {
+    for (const hc of heroColors) {
+        const allowed = (theory[hc] || []).map(lc);
+        if (candColors.some(cc => allowed.includes(lc(cc)))) return true;
+    }
+    return false;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  🧠  SCORING ENGINE
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Score a candidate against the hero item.
+ * Returns null if the candidate fails any hard filter,
+ * or { page, score, reasons[] } otherwise.
+ */
+function scoreCandidate(hero, candidate, wearableOnly) {
+    // Skip self
+    if (candidate.file.path === hero.file.path) return null;
+
+    // ── Hard filter: wearable status ──
+    if (wearableOnly) {
+        const s = lc(candidate.clothingstatus);
+        if (s === "hamper" || s === "laundry" ||
+            s === "donate"  || s === "repair") return null;
+    }
+
+    // ── Hard filter: avoids ──
+    const heroAvoids = linkPaths(hero.avoids);
+    const candAvoids = linkPaths(candidate.avoids);
+    if (fileMatchesAny(candidate.file.path, heroAvoids)) return null;
+    if (fileMatchesAny(hero.file.path, candAvoids))      return null;
+
+    // ── Scoring ──
+    let score = 0;
+    const reasons = [];
+
+    // +100  explicit pair
+    const heroPairs = linkPaths(hero.pairs);
+    if (fileMatchesAny(candidate.file.path, heroPairs)) {
+        score += CONFIG.SCORE.EXPLICIT_PAIR;
+        reasons.push(`+${CONFIG.SCORE.EXPLICIT_PAIR} paired`);
+    }
+
+    // +50  color theory
+    const hColors = asList(hero.color);
+    const cColors = asList(candidate.color);
+    if (hColors.length && cColors.length &&
+        colorTheoryMatch(hColors, cColors, CONFIG.COLOR_THEORY)) {
+        score += CONFIG.SCORE.COLOR_MATCH;
+        reasons.push(`+${CONFIG.SCORE.COLOR_MATCH} color`);
+    }
+
+    // +20 × n  mood overlap
+    const moodHits = countOverlap(asList(hero.mood), asList(candidate.mood));
+    if (moodHits) {
+        const pts = moodHits * CONFIG.SCORE.MOOD_OVERLAP;
+        score += pts;
+        reasons.push(`+${pts} mood`);
+    }
+
+    // +20 × n  occasion overlap
+    const occHits = countOverlap(asList(hero.occasion), asList(candidate.occasion));
+    if (occHits) {
+        const pts = occHits * CONFIG.SCORE.OCCASION_OVERLAP;
+        score += pts;
+        reasons.push(`+${pts} occasion`);
+    }
+
+    // +15 × n  season overlap
+    const seasonHits = countOverlap(asList(hero.season), asList(candidate.season));
+    if (seasonHits) {
+        const pts = seasonHits * CONFIG.SCORE.SEASON_OVERLAP;
+        score += pts;
+        reasons.push(`+${pts} season`);
+    }
+
+    return { page: candidate, score, reasons };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  📦  STATE
+// ═══════════════════════════════════════════════════════════════
+
+const allPages = dv.pages(`"${CONFIG.itemsFolder}"`).array();
+
+function collectUnique(prop) {
+    const s = new Set();
+    allPages.forEach(p => asList(p[prop]).forEach(v => v && s.add(v)));
+    return [...s].sort();
+}
+
+const ALL_SEASONS   = collectUnique("season");
+const ALL_MOODS     = collectUnique("mood");
+const ALL_OCCASIONS = collectUnique("occasion");
+
+const state = {
+    heroPage:       null,
+    filterSeason:   [],
+    filterMood:     [],
+    filterOccasion: [],
+    filterFormula:  "Standard",
+    wearableOnly:   true,
+    debug:          CONFIG.debugDefault,
+    // slots: { categoryKey -> { candidates: ScoredItem[], index: number, locked: bool } }
+    slots: {},
+    // Paths of items forced in by a `requires` link (used for badge + lock)
+    requiredPaths:  new Set(),
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  🔁  SUGGESTION ENGINE
+// ═══════════════════════════════════════════════════════════════
+
+function updateSuggestions() {
+    if (!state.heroPage) { state.slots = {}; return; }
+
+    const formula  = CONFIG.OUTFIT_FORMULAS[state.filterFormula];
+    const heroCat  = lc(state.heroPage.clothingcategory);
+    const heroSub  = lc(state.heroPage.clothingsubcategory || "");
+
+    // Slots the formula needs, minus the hero's own category
+    const skipCats = heroCat === "full body" ? ["tops", "bottoms", heroCat] : [heroCat];
+    const needed   = formula.slots.filter(s => !skipCats.includes(s));
+
+    state.slots = {};
+
+    needed.forEach(slotCat => {
+        // Base pool: correct category
+        let pool = allPages.filter(p => lc(p.clothingcategory) === slotCat);
+
+        // Apply global season / mood / occasion filters to suggestion pool
+        if (state.filterSeason.length) {
+            const active = state.filterSeason.map(lc);
+            pool = pool.filter(p =>
+                asList(p.season).some(s => active.includes(lc(s))));
+        }
+        if (state.filterMood.length) {
+            const active = state.filterMood.map(lc);
+            pool = pool.filter(p =>
+                asList(p.mood).some(m => active.includes(lc(m))));
+        }
+        if (state.filterOccasion.length) {
+            const active = state.filterOccasion.map(lc);
+            pool = pool.filter(p =>
+                asList(p.occasion).some(o => active.includes(lc(o))));
+        }
+
+        // Formula-level season restriction
+        if (formula.seasons && formula.seasons.length) {
+            const fSeasons = formula.seasons.map(lc);
+            pool = pool.filter(p =>
+                asList(p.season).some(s => fSeasons.includes(lc(s))));
+        }
+
+        // Subcategory preference override
+        const subRule = CONFIG.SUBCATEGORY_RULES[heroSub];
+        if (subRule && subRule[slotCat]) {
+            const preferred = subRule[slotCat].map(lc);
+            const prefPool  = pool.filter(p =>
+                preferred.includes(lc(p.clothingsubcategory)));
+            if (prefPool.length > 0) pool = prefPool;
+        }
+
+        // Score every candidate
+        const scored = pool
+            .map(p => scoreCandidate(state.heroPage, p, state.wearableOnly))
+            .filter(Boolean)
+            .sort((a, b) => b.score - a.score);
+
+        state.slots[slotCat] = { candidates: scored, index: 0, locked: false };
+    });
+
+    // ── Resolve `requires` links (cascading) ──────────────────────
+    resolveRequires();
+}
+
+/**
+ * After scoring is done, walk every active item's `requires` links and
+ * force those pages to the front of their category slot.
+ *
+ * • If the slot already exists: required item is moved to index 0 and
+ *   the slot is locked (shuffle hidden) so it can't be cycled away from.
+ * • If the slot doesn't exist yet (category not in the formula): a new
+ *   slot is created so the item always shows up.
+ * • Cascades: if a required item itself has `requires`, those are
+ *   resolved too — loops until no new items are discovered.
+ */
+function resolveRequires() {
+    state.requiredPaths = new Set();
+    if (!state.heroPage) return;
+
+    // Unlock all slots before re-resolving (clean slate each call)
+    Object.values(state.slots).forEach(s => { s.locked = false; });
+
+    // BFS from hero, then cascade through each required item
+    const visited = new Set([state.heroPage.file.path]);
+    const queue   = [state.heroPage];
+
+    while (queue.length) {
+        const page    = queue.shift();
+        const reqPaths = linkPaths(page.requires);
+
+        for (const rPath of reqPaths) {
+            // Find the page in the vault
+            const reqPage = allPages.find(p => fileMatchesAny(p.file.path, [rPath]));
+            if (!reqPage || visited.has(reqPage.file.path)) continue;
+            visited.add(reqPage.file.path);
+
+            state.requiredPaths.add(reqPage.file.path);
+            const cat = lc(reqPage.clothingcategory);
+
+            // Create slot if the formula didn't include this category
+            if (!state.slots[cat]) {
+                state.slots[cat] = { candidates: [], index: 0, locked: false };
+            }
+
+            const slot = state.slots[cat];
+
+            // Remove it from wherever it already sits in the candidate list
+            slot.candidates = slot.candidates.filter(
+                c => c.page.file.path !== reqPage.file.path
+            );
+
+            // Push to the very front with a sentinel score
+            slot.candidates.unshift({
+                page:    reqPage,
+                score:   999,
+                reasons: ["required"],
+            });
+
+            // Lock: index snaps to 0 and the shuffle button is hidden
+            slot.index  = 0;
+            slot.locked = true;
+
+            // Cascade into this item's own requires
+            queue.push(reqPage);
+        }
+    }
+}
+
+function pickRandomHero() {
+    let pool = allPages;
+    if (state.wearableOnly) {
+        pool = pool.filter(p => {
+            const s = lc(p.clothingstatus);
+            return s !== "hamper" && s !== "laundry" &&
+                   s !== "donate" && s !== "repair";
+        });
+    }
+    if (state.filterSeason.length) {
+        const active = state.filterSeason.map(lc);
+        pool = pool.filter(p =>
+            asList(p.season).some(s => active.includes(lc(s))));
+    }
+    if (state.filterMood.length) {
+        const active = state.filterMood.map(lc);
+        pool = pool.filter(p =>
+            asList(p.mood).some(m => active.includes(lc(m))));
+    }
+    if (state.filterOccasion.length) {
+        const active = state.filterOccasion.map(lc);
+        pool = pool.filter(p =>
+            asList(p.occasion).some(o => active.includes(lc(o))));
+    }
+    if (!pool.length) { showToast("⚠ No items match the active filters."); return; }
+    state.heroPage = pool[Math.floor(Math.random() * pool.length)];
+    updateSuggestions();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  📋  LOG OUTFIT
+// ═══════════════════════════════════════════════════════════════
+
+async function logOutfit() {
+    if (!state.heroPage) return;
+
+    const formula  = CONFIG.OUTFIT_FORMULAS[state.filterFormula];
+    const heroCat  = lc(state.heroPage.clothingcategory);
+    const skipCats = heroCat === "full body" ? ["tops", "bottoms", heroCat] : [heroCat];
+    const activeSlots = formula.slots.filter(s => !skipCats.includes(s));
+
+    const outfitPages = activeSlots
+        .map(slotCat => {
+            const d = state.slots[slotCat];
+            if (!d || !d.candidates.length) return null;
+            return d.candidates[d.index % d.candidates.length].page;
+        })
+        .filter(Boolean);
+
+    const today      = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
+    const allInFit   = [state.heroPage, ...outfitPages];
+
+    try {
+        for (const page of allInFit) {
+            const others = allInFit
+                .filter(p => p.file.path !== page.file.path)
+                .map(p => `[[${p.file.name.replace(/\.md$/, "")}]]`)
+                .join(", ");
+
+            await app.fileManager.processFrontMatter(page.file, fm => {
+                fm.wear_count = (parseInt(fm.wear_count) || 0) + 1;
+                if (!fm.outfits) fm.outfits = [];
+                if (!Array.isArray(fm.outfits)) fm.outfits = [fm.outfits];
+                fm.outfits.push(`${today}: Worn with ${others}`);
+            });
+        }
+        showToast(`✓ Outfit logged — ${allInFit.length} items updated.`);
+    } catch (e) {
+        showToast(`⚠ Could not log outfit: ${e.message}`, true);
+        console.error("[Wardrobe Stylist] logOutfit error:", e);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  🎨  UI BUILDER
+// ═══════════════════════════════════════════════════════════════
+
+// Shared reference to the canvas element so we can refresh it
+// without re-rendering the entire page.
+let $canvas = null;
+
+/** Full render — call when filters, debug toggle, or hero changes */
+function render() {
+    ROOT.innerHTML = "";
+    $canvas = null;
+    ROOT.appendChild(buildHeader());
+    ROOT.appendChild(buildFilters());
+    const canvasWrapper = buildCanvas();
+    ROOT.appendChild(canvasWrapper);
+}
+
+// ── Header ──────────────────────────────────────────────────────
+function buildHeader() {
+    const el = make("div", "ws-header");
+
+    const title = make("span", "ws-header__wordmark");
+    title.innerHTML = `<span class="ws-header__icon">✦</span> Wardrobe Stylist`;
+    el.appendChild(title);
+
+    const right = make("div", "ws-header__right");
+
+    // Wearable toggle
+    const wLabel = make("label", "ws-wearable-label");
+    wLabel.title = "When on, only Clean items appear";
+
+    const wCb = document.createElement("input");
+    wCb.type    = "checkbox";
+    wCb.checked = state.wearableOnly;
+    wCb.style.display = "none";
+    wCb.onchange = () => {
+        state.wearableOnly = wCb.checked;
+        updateSuggestions();
+        refreshCanvas();
+        // Update icon state without full re-render
+        dot.className = "ws-wearable-dot" + (state.wearableOnly ? " ws-wearable-dot--on" : "");
+        wLabel.title = state.wearableOnly
+            ? "Wearable only (clean items)"
+            : "All items (including laundry, etc.)";
+    };
+
+    const dot = make("span", "ws-wearable-dot" + (state.wearableOnly ? " ws-wearable-dot--on" : ""));
+    const wText = make("span", "ws-wearable-text");
+    wText.textContent = "Wearable";
+
+    wLabel.appendChild(wCb);
+    wLabel.appendChild(dot);
+    wLabel.appendChild(wText);
+    right.appendChild(wLabel);
+
+    // Debug toggle
+    const dLabel = make("label", "ws-debug-label");
+    dLabel.title = "Show scoring breakdown on suggestion cards";
+    const dCb = document.createElement("input");
+    dCb.type    = "checkbox";
+    dCb.checked = state.debug;
+    dCb.style.display = "none";
+    dCb.onchange = () => { state.debug = dCb.checked; render(); };
+    const dText = make("span");
+    dText.textContent = "Debug";
+    dLabel.appendChild(dCb);
+    dLabel.appendChild(dText);
+    right.appendChild(dLabel);
+
+    el.appendChild(right);
+    return el;
+}
+
+// ── Filters ──────────────────────────────────────────────────────
+function buildFilters() {
+    const el = make("div", "ws-filters");
+
+    // Season pills
+    if (ALL_SEASONS.length) {
+        el.appendChild(buildPillGroup("Season", ALL_SEASONS, state.filterSeason, () => {
+            updateSuggestions(); refreshCanvas();
+        }));
+    }
+
+    // Mood pills
+    if (ALL_MOODS.length) {
+        el.appendChild(buildPillGroup("Mood", ALL_MOODS, state.filterMood, () => {
+            updateSuggestions(); refreshCanvas();
+        }));
+    }
+
+    // Occasion pills
+    if (ALL_OCCASIONS.length) {
+        el.appendChild(buildPillGroup("Occasion", ALL_OCCASIONS, state.filterOccasion, () => {
+            updateSuggestions(); refreshCanvas();
+        }));
+    }
+
+    // Formula selector
+    const formulaGroup = make("div", "ws-filter-group");
+    const formulaLabel = make("span", "ws-filter-label");
+    formulaLabel.textContent = "Formula";
+    formulaGroup.appendChild(formulaLabel);
+
+    const sel = make("select", "ws-select");
+    Object.keys(CONFIG.OUTFIT_FORMULAS).forEach(name => {
+        const opt = document.createElement("option");
+        opt.value    = name;
+        opt.textContent = name;
+        opt.selected = name === state.filterFormula;
+        sel.appendChild(opt);
+    });
+    sel.onchange = () => {
+        state.filterFormula = sel.value;
+        updateSuggestions(); refreshCanvas();
+    };
+    formulaGroup.appendChild(sel);
+    el.appendChild(formulaGroup);
+
+    // Random button
+    const rndBtn = makeBtn("🎲  Random", "ws-btn ws-btn--random", () => {
+        pickRandomHero();
+        render();
+    });
+    el.appendChild(rndBtn);
+
+    return el;
+}
+
+function buildPillGroup(labelText, options, activeArr, onChange) {
+    const group = make("div", "ws-filter-group ws-filter-group--pills");
+    const lbl   = make("span", "ws-filter-label");
+    lbl.textContent = labelText;
+    group.appendChild(lbl);
+
+    const pills = make("div", "ws-pills");
+    options.forEach(opt => {
+        const pill = make("button",
+            "ws-pill" + (activeArr.map(lc).includes(lc(opt)) ? " ws-pill--on" : ""));
+        pill.textContent = opt;
+        pill.onclick = () => {
+            const idx = activeArr.findIndex(x => lc(x) === lc(opt));
+            if (idx >= 0) activeArr.splice(idx, 1);
+            else          activeArr.push(opt);
+            pill.classList.toggle("ws-pill--on", activeArr.map(lc).includes(lc(opt)));
+            onChange();
+        };
+        pills.appendChild(pill);
+    });
+
+    group.appendChild(pills);
+    return group;
+}
+
+// ── Canvas ────────────────────────────────────────────────────────
+function buildCanvas() {
+    $canvas = make("div", "ws-canvas");
+    refreshCanvas();
+    return $canvas;
+}
+
+/** Refresh only the canvas area — cheaper than full render() */
+function refreshCanvas() {
+    if (!$canvas) return;
+    $canvas.innerHTML = "";
+
+    // ── Hero panel ──
+    const heroPanel = make("div", "ws-panel ws-panel--hero");
+
+    if (state.heroPage) {
+        heroPanel.appendChild(buildCard(state.heroPage, null, null, true));
+    } else {
+        const placeholder = make("div", "ws-card-placeholder");
+        placeholder.innerHTML = `<span class="ws-placeholder-icon">✦</span>
+            <p class="ws-placeholder-text">Select a hero item below<br>or hit Random</p>`;
+        heroPanel.appendChild(placeholder);
+    }
+
+    // Hero selector (always visible)
+    heroPanel.appendChild(buildHeroSelector());
+    $canvas.appendChild(heroPanel);
+
+    // ── Suggestion panel ──
+    const suggPanel = make("div", "ws-panel ws-panel--suggestions");
+
+    if (!state.heroPage) {
+        const hint = make("p", "ws-hint");
+        hint.textContent = "Your outfit will appear here once you pick a hero item.";
+        suggPanel.appendChild(hint);
+    } else {
+        const formula  = CONFIG.OUTFIT_FORMULAS[state.filterFormula];
+        const heroCat  = lc(state.heroPage.clothingcategory);
+        const skipCats = heroCat === "full body" ? ["tops", "bottoms", heroCat] : [heroCat];
+        const activeSlots = formula.slots.filter(s => !skipCats.includes(s));
+
+        if (!activeSlots.length) {
+            const hint = make("p", "ws-hint");
+            hint.textContent = "This item fills all formula slots — try a different formula.";
+            suggPanel.appendChild(hint);
+        } else {
+            activeSlots.forEach(slotCat => {
+                const slotData = state.slots[slotCat];
+
+                const slotWrap = make("div", "ws-slot");
+                const slotLabel = make("div", "ws-slot-label");
+                slotLabel.textContent = slotCat;
+                slotWrap.appendChild(slotLabel);
+
+                if (!slotData || !slotData.candidates.length) {
+                    const empty = make("div", "ws-slot-empty");
+                    empty.textContent = `No ${slotCat} match`;
+                    slotWrap.appendChild(empty);
+                } else {
+                    const total  = slotData.candidates.length;
+                    const idx    = slotData.index % total;
+                    const item   = slotData.candidates[idx];
+                    const locked = slotData.locked;
+
+                    const cardEl = buildCard(
+                        item.page, item.score, item.reasons, false,
+                        locked ? null : () => {          // no shuffle fn when locked
+                            slotData.index++;
+                            refreshCanvas();
+                        },
+                        state.requiredPaths.has(item.page.file.path)
+                    );
+                    slotWrap.appendChild(cardEl);
+
+                    // Counter — hide when locked (only one valid item)
+                    if (total > 1 && !locked) {
+                        const counter = make("div", "ws-slot-counter");
+                        counter.textContent = `${idx + 1} / ${total}`;
+                        slotWrap.appendChild(counter);
+                    }
+                }
+
+                suggPanel.appendChild(slotWrap);
+            });
+
+            // ── Render any bonus slots added by `requires` resolution ──
+            // (categories not in the formula but forced in by a requires link)
+            const extraSlotCats = Object.keys(state.slots).filter(
+                cat => !activeSlots.includes(cat) && !skipCats.includes(cat)
+            );
+            extraSlotCats.forEach(slotCat => {
+                const slotData = state.slots[slotCat];
+                if (!slotData || !slotData.candidates.length) return;
+
+                const slotWrap  = make("div", "ws-slot");
+                const slotLabel = make("div", "ws-slot-label ws-slot-label--required");
+                slotLabel.textContent = slotCat;
+                slotLabel.title = "Added automatically by a requires rule";
+                slotWrap.appendChild(slotLabel);
+
+                const idx  = slotData.index % slotData.candidates.length;
+                const item = slotData.candidates[idx];
+
+                const cardEl = buildCard(
+                    item.page, item.score, item.reasons, false,
+                    null,   // always locked — required item
+                    true
+                );
+                slotWrap.appendChild(cardEl);
+                suggPanel.appendChild(slotWrap);
+            });
+        const logBtn = makeBtn("📋  Log Outfit", "ws-btn ws-btn--log", () => logOutfit());
+        $canvas.appendChild(logBtn);
+    }
+
+    $canvas.appendChild(suggPanel);
+}
+
+// ── Hero Selector ────────────────────────────────────────────────
+function buildHeroSelector() {
+    const wrap = make("div", "ws-hero-selector");
+    const sel  = make("select", "ws-select ws-select--hero");
+
+    const ph = document.createElement("option");
+    ph.value       = "";
+    ph.textContent = state.heroPage ? "Change hero…" : "Select hero item…";
+    sel.appendChild(ph);
+
+    // Build pool (respect wearable filter)
+    let heroPool = state.wearableOnly
+        ? allPages.filter(p => {
+              const s = lc(p.clothingstatus);
+              return s !== "hamper" && s !== "laundry" &&
+                     s !== "donate" && s !== "repair";
+          })
+        : allPages;
+
+    // Group by clothingcategory
+    const grouped = {};
+    heroPool.forEach(p => {
+        const cat = p.clothingcategory || "Uncategorized";
+        (grouped[cat] = grouped[cat] || []).push(p);
+    });
+
+    Object.entries(grouped)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .forEach(([cat, items]) => {
+            const og = document.createElement("optgroup");
+            og.label = cat;
+            items
+                .sort((a, b) => displayName(a).localeCompare(displayName(b)))
+                .forEach(p => {
+                    const opt = document.createElement("option");
+                    opt.value    = p.file.path;
+                    opt.textContent = displayName(p);
+                    opt.selected = !!(state.heroPage &&
+                                      state.heroPage.file.path === p.file.path);
+                    og.appendChild(opt);
+                });
+            sel.appendChild(og);
+        });
+
+    sel.onchange = () => {
+        if (!sel.value) return;
+        state.heroPage = allPages.find(p => p.file.path === sel.value) || null;
+        updateSuggestions();
+        render();
+    };
+
+    wrap.appendChild(sel);
+    return wrap;
+}
+
+// ── Card ─────────────────────────────────────────────────────────
+function buildCard(page, score, reasons, isHero, onShuffle, isRequired = false) {
+    const imgSrc  = resolveImage(page.image);
+    const name    = displayName(page);
+    const size    = page.size   ? `Size ${page.size}` : "";
+    const colors  = asList(page.color).join(", ");
+    const tags    = asList(page.stylingtags).join("  ·  ");
+
+    const card = make("div", "ws-card" + (isHero ? " ws-card--hero" : ""));
+
+    // Image
+    const imgEl = make("div", "ws-card__img");
+    if (imgSrc) {
+        imgEl.style.backgroundImage = `url('${imgSrc}')`;
+    } else {
+        imgEl.innerHTML = `<span class="ws-card__no-img">✦</span>`;
+    }
+    card.appendChild(imgEl);
+
+    // Required badge (takes priority over score badge)
+    if (isRequired) {
+        const reqBadge = make("div", "ws-required-badge");
+        reqBadge.textContent = "✦ required";
+        card.appendChild(reqBadge);
+    } else if (!isHero && score !== undefined && state.debug) {
+        // Score badge (debug mode, suggestions only)
+        const badge = make("div", "ws-score-badge");
+        badge.textContent = score;
+        if (reasons && reasons.length) {
+            badge.title = reasons.join("  |  ");
+        }
+        card.appendChild(badge);
+    }
+
+    // Shuffle button (suggestions only)
+    if (!isHero && onShuffle) {
+        const shuffleBtn = make("button", "ws-shuffle-btn");
+        shuffleBtn.textContent = "↻";
+        shuffleBtn.title = "Swap for next match";
+        shuffleBtn.onclick = e => { e.stopPropagation(); onShuffle(); };
+        card.appendChild(shuffleBtn);
+    }
+
+    // Info
+    const info = make("div", "ws-card__info");
+
+    const titleEl = make("div", "ws-card__title");
+    titleEl.textContent = name;
+    info.appendChild(titleEl);
+
+    if (size || colors) {
+        const meta = make("div", "ws-card__meta");
+        meta.textContent = [size, colors].filter(Boolean).join("  ·  ");
+        info.appendChild(meta);
+    }
+
+    if (tags) {
+        const tagsEl = make("div", "ws-card__tags");
+        tagsEl.textContent = tags;
+        info.appendChild(tagsEl);
+    }
+
+    card.appendChild(info);
+    return card;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  🍞  TOAST
+// ═══════════════════════════════════════════════════════════════
+
+function showToast(msg, isError = false) {
+    const t = make("div", "ws-toast" + (isError ? " ws-toast--error" : ""));
+    t.textContent = msg;
+    ROOT.appendChild(t);
+    setTimeout(() => t.classList.add("ws-toast--out"), 2400);
+    setTimeout(() => t.remove(), 2800);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  🔧  DOM MICRO-HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+function make(tag, cls = "") {
+    const el = document.createElement(tag);
+    if (cls) el.className = cls;
+    return el;
+}
+
+function makeBtn(text, cls, onClick) {
+    const btn = make("button", cls);
+    btn.textContent = text;
+    btn.onclick = onClick;
+    return btn;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  💅  STYLES
+// ═══════════════════════════════════════════════════════════════
+
+const CSS = `
+/* ── Root ─────────────────────────────────────────── */
+.ws-root {
+    font-family: "Georgia", "Times New Roman", serif;
+    font-size: 13px;
+    color: var(--text-normal);
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 2px 2px 24px;
+    line-height: 1.5;
+}
+
+/* ── Header ───────────────────────────────────────── */
+.ws-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0 12px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: 16px;
+}
+.ws-header__wordmark {
+    font-family: "Georgia", serif;
+    font-size: 16px;
+    font-weight: normal;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.ws-header__icon {
+    font-size: 11px;
+    opacity: 0.5;
+    margin-right: 2px;
+}
+.ws-header__right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+/* ── Wearable toggle ──────────────────────────────── */
+.ws-wearable-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 11px;
+    font-family: -apple-system, sans-serif;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.ws-wearable-dot {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 1.5px solid var(--background-modifier-border);
+    display: inline-block;
+    transition: background 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+}
+.ws-wearable-dot--on {
+    background: #5aaf87;
+    border-color: #5aaf87;
+    box-shadow: 0 0 0 2px rgba(90,175,135,0.18);
+}
+.ws-wearable-text { color: var(--text-faint); }
+
+/* ── Debug toggle ─────────────────────────────────── */
+.ws-debug-label {
+    font-family: -apple-system, sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    transition: color 0.12s, border-color 0.12s;
+}
+.ws-debug-label:hover {
+    color: var(--text-muted);
+    border-color: var(--text-faint);
+}
+
+/* ── Filters ──────────────────────────────────────── */
+.ws-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: 22px;
+}
+.ws-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.ws-filter-label {
+    font-family: -apple-system, sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+.ws-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+.ws-pill {
+    font-family: -apple-system, sans-serif;
+    font-size: 11px;
+    padding: 3px 11px;
+    border-radius: 20px;
+    border: 1px solid var(--background-modifier-border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.12s;
+    line-height: 1.7;
+    white-space: nowrap;
+}
+.ws-pill:hover {
+    border-color: var(--interactive-accent);
+    color: var(--interactive-accent);
+}
+.ws-pill--on {
+    background: var(--interactive-accent);
+    border-color: var(--interactive-accent);
+    color: #fff !important;
+}
+.ws-select {
+    font-family: -apple-system, sans-serif;
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    cursor: pointer;
+    outline: none;
+    min-width: 130px;
+}
+.ws-btn--random {
+    font-family: -apple-system, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 16px;
+    border-radius: 7px;
+    border: 1.5px solid var(--interactive-accent);
+    background: transparent;
+    color: var(--interactive-accent);
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: all 0.12s;
+    align-self: flex-end;
+}
+.ws-btn--random:hover {
+    background: var(--interactive-accent);
+    color: #fff;
+}
+
+/* ── Canvas ───────────────────────────────────────── */
+.ws-canvas {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 28px;
+    row-gap: 14px;
+    align-items: start;
+}
+.ws-panel--hero {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.ws-panel--suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+/* ── Cards ────────────────────────────────────────── */
+.ws-card {
+    position: relative;
+    width: 152px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    flex-shrink: 0;
+    transition: box-shadow 0.15s, transform 0.15s;
+}
+.ws-card:hover {
+    box-shadow: 0 6px 22px rgba(0,0,0,0.09);
+    transform: translateY(-1px);
+}
+.ws-card--hero {
+    width: 200px;
+}
+.ws-card__img {
+    width: 100%;
+    height: 200px;
+    background-size: cover;
+    background-position: center top;
+    background-color: var(--background-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.ws-card--hero .ws-card__img { height: 264px; }
+.ws-card__no-img {
+    font-size: 32px;
+    opacity: 0.18;
+}
+.ws-card__info {
+    padding: 9px 11px 11px;
+}
+.ws-card__title {
+    font-family: "Georgia", serif;
+    font-size: 12px;
+    color: var(--text-normal);
+    line-height: 1.4;
+    margin-bottom: 3px;
+}
+.ws-card__meta {
+    font-family: -apple-system, sans-serif;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+}
+.ws-card__tags {
+    font-family: -apple-system, sans-serif;
+    font-size: 10px;
+    color: var(--text-faint);
+    font-style: italic;
+}
+
+/* ── Required badge ───────────────────────────────── */
+.ws-required-badge {
+    position: absolute;
+    top: 8px; left: 8px;
+    background: rgba(180, 120, 60, 0.88);
+    color: #fff;
+    font-family: -apple-system, sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 10px;
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+}
+
+/* Required slot label variant */
+.ws-slot-label--required {
+    color: rgba(180, 120, 60, 0.8);
+}
+.ws-slot-label--required::after {
+    content: "  ✦";
+    opacity: 0.6;
+}
+
+/* ── Score badge ──────────────────────────────────── */
+.ws-score-badge {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: rgba(0,0,0,0.58);
+    color: #fff;
+    font-family: -apple-system, sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    backdrop-filter: blur(4px);
+    cursor: help;
+}
+
+/* ── Shuffle button ───────────────────────────────── */
+.ws-shuffle-btn {
+    position: absolute;
+    bottom: 44px; right: 8px;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+    transition: all 0.12s;
+    opacity: 0;
+}
+.ws-card:hover .ws-shuffle-btn { opacity: 1; }
+.ws-shuffle-btn:hover {
+    background: var(--interactive-accent);
+    border-color: var(--interactive-accent);
+    color: #fff;
+}
+
+/* ── Hero selector ────────────────────────────────── */
+.ws-hero-selector { width: 100%; }
+.ws-select--hero { width: 100%; }
+
+/* ── Card placeholder ─────────────────────────────── */
+.ws-card-placeholder {
+    width: 200px;
+    height: 264px;
+    border-radius: 10px;
+    border: 1.5px dashed var(--background-modifier-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: var(--background-secondary);
+}
+.ws-placeholder-icon {
+    font-size: 28px;
+    opacity: 0.15;
+}
+.ws-placeholder-text {
+    font-family: -apple-system, sans-serif;
+    font-size: 11px;
+    color: var(--text-faint);
+    text-align: center;
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* ── Slot ─────────────────────────────────────────── */
+.ws-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+.ws-slot-label {
+    font-family: -apple-system, sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    align-self: flex-start;
+}
+.ws-slot-counter {
+    font-family: -apple-system, sans-serif;
+    font-size: 10px;
+    color: var(--text-faint);
+}
+.ws-slot-empty {
+    width: 152px;
+    min-height: 80px;
+    border-radius: 8px;
+    background: var(--background-secondary);
+    border: 1px dashed var(--background-modifier-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, sans-serif;
+    font-size: 11px;
+    color: var(--text-faint);
+    font-style: italic;
+    padding: 10px;
+    text-align: center;
+}
+
+/* ── Log outfit button ────────────────────────────── */
+.ws-btn--log {
+    grid-column: 1 / -1;
+    justify-self: end;
+    font-family: -apple-system, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 18px;
+    border-radius: 7px;
+    border: 1.5px solid var(--interactive-accent);
+    background: var(--interactive-accent);
+    color: #fff;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: opacity 0.12s;
+    align-self: start;
+}
+.ws-btn--log:hover { opacity: 0.84; }
+
+/* ── Hint ─────────────────────────────────────────── */
+.ws-hint {
+    font-family: -apple-system, sans-serif;
+    font-size: 12px;
+    color: var(--text-faint);
+    font-style: italic;
+    margin: 0;
+    align-self: center;
+}
+
+/* ── Toast ────────────────────────────────────────── */
+.ws-toast {
+    position: fixed;
+    bottom: 22px; right: 22px;
+    background: #2b2b2b;
+    color: #fff;
+    font-family: -apple-system, sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 10px 18px;
+    border-radius: 8px;
+    z-index: 9999;
+    transition: opacity 0.3s;
+    opacity: 1;
+    pointer-events: none;
+}
+.ws-toast--error { background: #b94040; }
+.ws-toast--out   { opacity: 0; }
+`;
+
+// ═══════════════════════════════════════════════════════════════
+//  🚀  BOOTSTRAP
+// ═══════════════════════════════════════════════════════════════
+
+// Inject styles (idempotent via data attribute)
+const STYLE_ID = "wardrobe-stylist-css";
+if (!document.getElementById(STYLE_ID)) {
+    const styleEl = document.createElement("style");
+    styleEl.id = STYLE_ID;
+    styleEl.textContent = CSS;
+    document.head.appendChild(styleEl);
+}
+
+// Mount root
+const ROOT = dv.container;
+ROOT.className = "ws-root";
+
+render();
