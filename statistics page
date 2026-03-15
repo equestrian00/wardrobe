@@ -1,0 +1,622 @@
+# Wardrobe Statistics
+
+```dataviewjs
+// ╔══════════════════════════════════════════════════════════════╗
+//  📊  WARDROBE STATISTICS  —  DataviewJS
+// ╚══════════════════════════════════════════════════════════════╝
+
+// ═══════════════════════════════════════════════════════════════
+//  ⚙️  CONFIGURATION
+// ═══════════════════════════════════════════════════════════════
+
+const CONFIG = {
+    itemsFolder:  "Items",
+    // Frontmatter key map — keep in sync with Wardrobe Stylist
+    keys: {
+        brand:        "brand",
+        style:        "clothingstyle",
+        subcategory:  "clothingsubcategory",
+        category:     "clothingcategory",
+        status:       "clothingstatus",
+        location:     "location",
+        size:         "size",
+        color:        "color",
+        cost:         "cost",
+        wear:         "wear_count",
+        season:       "season",
+        styling_tags: "styling_tags",
+        pairs:        "pairs",
+        avoids:       "avoids",
+        link:         "link",
+    },
+    // Statuses that count as "active" (in rotation)
+    activeStatuses:  ["clean", "hamper", "laundry"],
+    // Statuses that count as archived / removed
+    archiveStatuses: ["archive"],
+    // Wishlist items have this status
+    wishlistStatus:  "wishlist",
+    // How many items to show in top-N charts
+    topN: 8,
+
+    // ── Season colors ──────────────────────────────────────────
+    // Maps season name (lowercase) → chart color
+    SEASON_COLORS: {
+        "spring": "#9ab897",   // sage green
+        "summer": "#c9a96e",   // warm gold — matches stylist accent
+        "fall":   "#c17f74",   // dusty terracotta — matches stylist palette
+        "autumn": "#c17f74",   // alias for fall
+        "winter": "#7a9db5",   // muted slate blue
+    },
+
+    // ── Color map ───────────────────────────────────────────────
+    // Maps color name (lowercase) → CSS color value.
+    // Add or edit entries freely — these drive the color donut chart.
+    COLOR_MAP: {
+        "black":    "#1a1a1a",
+        "white":    "#f5f5f5",
+        "grey":     "#9e9e9e",
+        "gray":     "#9e9e9e",
+        "navy":     "#1b2a4a",
+        "blue":     "#4a78b8",
+        "denim":    "#6b8cba",
+        "cobalt":   "#0047ab",
+        "teal":     "#3d9999",
+        "mint":     "#98d8c0",
+        "sage":     "#87a878",
+        "green":    "#4a8c4a",
+        "olive":    "#6b7c3a",
+        "red":      "#c03030",
+        "burgundy": "#7c1e2e",
+        "pink":     "#e8809a",
+        "blush":    "#e8b4b8",
+        "coral":    "#e8775a",
+        "orange":   "#e8883a",
+        "rust":     "#b8502a",
+        "yellow":   "#e8d060",
+        "mustard":  "#c8a020",
+        "gold":     "#c8a840",
+        "camel":    "#c89a60",
+        "tan":      "#c8a878",
+        "brown":    "#7a5030",
+        "cream":    "#f5f0e0",
+        "beige":    "#e8d8b8",
+        "lavender": "#c0a8d8",
+        "purple":   "#7a50a0",
+        "silver":   "#c0c0c0",
+        "leopard":  "#c8a840",
+        "floral":   "#e890a8",
+    },
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  🛠  UTILITIES
+// ═══════════════════════════════════════════════════════════════
+
+function fk(p, alias) { return p[CONFIG.keys[alias]]; }
+function lc(v) { return String(v || "").toLowerCase().trim(); }
+function asList(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.map(v => String(v).trim()).filter(Boolean);
+    return [String(val).trim()].filter(Boolean);
+}
+function toTitleCase(s) {
+    return String(s).replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+function parseCost(val) {
+    if (!val) return 0;
+    const n = parseFloat(String(val).replace(/[^0-9.]/g, ""));
+    return isNaN(n) ? 0 : n;
+}
+function fmt$(n) {
+    return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function pct(n, total) {
+    return total ? Math.round((n / total) * 100) : 0;
+}
+
+// Count values in a map, return sorted array [{label, count}]
+function tally(pages, keyFn, multi = false) {
+    const map = {};
+    pages.forEach(p => {
+        const vals = multi ? asList(keyFn(p)) : [keyFn(p)];
+        vals.forEach(v => {
+            const k = String(v || "").trim();
+            if (k) map[k] = (map[k] || 0) + 1;
+        });
+    });
+    return Object.entries(map)
+        .map(([label, count]) => ({ label, count }))
+        .sort((a, b) => b.count - a.count);
+}
+
+function linkCount(pages, keyAlias) {
+    return pages.map(p => {
+        const links = asList(fk(p, keyAlias));
+        return { page: p, count: links.length };
+    }).sort((a, b) => b.count - a.count);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  📦  DATA
+// ═══════════════════════════════════════════════════════════════
+
+const all      = dv.pages(`"${CONFIG.itemsFolder}"`).array();
+const archived = all.filter(p => CONFIG.archiveStatuses.includes(lc(fk(p, "status"))));
+const wishlist = all.filter(p => lc(fk(p, "status")) === CONFIG.wishlistStatus);
+const active   = all.filter(p => !CONFIG.archiveStatuses.includes(lc(fk(p, "status")))
+                               && lc(fk(p, "status")) !== CONFIG.wishlistStatus);
+
+const totalCost     = active.reduce((s, p) => s + parseCost(fk(p, "cost")), 0);
+const wishCost      = wishlist.reduce((s, p) => s + parseCost(fk(p, "cost")), 0);
+
+const inRotation    = active.filter(p => CONFIG.activeStatuses.includes(lc(fk(p, "status"))));
+
+// ═══════════════════════════════════════════════════════════════
+//  🎨  DOM HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+function make(tag, cls = "") {
+    const el = document.createElement(tag);
+    if (cls) el.className = cls;
+    return el;
+}
+function text(tag, cls, content) {
+    const el = make(tag, cls);
+    el.textContent = content;
+    return el;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  🏗  COMPONENT BUILDERS
+// ═══════════════════════════════════════════════════════════════
+
+// ── Section wrapper ──────────────────────────────────────────
+/**
+ * Build a section wrapper.
+ * opts.collapsed    = true  → starts closed (user clicks to open)
+ * opts.collapsed    = false → starts open, still user-collapsible (default)
+ * opts.collapsible  = false → not collapsible at all; plain div header,
+ *                             no accent bar, no divider
+ */
+function section(title, ...args) {
+    let opts = { collapsed: false, collapsible: true };
+    const children = [];
+    args.forEach(a => {
+        if (a && typeof a === "object" && !a.nodeType &&
+            ("collapsed" in a || "collapsible" in a)) {
+            opts = Object.assign(opts, a);
+        } else {
+            children.push(a);
+        }
+    });
+
+    const wrap = make("section", "wst-section");
+
+    if (title) {
+        if (opts.collapsible === false) {
+            // ── Plain non-collapsible header ──
+            const h = make("div", "wst-section__header wst-section__header--plain");
+            h.appendChild(text("span", "wst-section__title", title));
+            wrap.appendChild(h);
+            const body = make("div", "wst-section__body");
+            children.forEach(c => c && body.appendChild(c));
+            wrap.appendChild(body);
+        } else {
+            // ── Collapsible <details> header ──
+            const details = document.createElement("details");
+            details.className = "wst-section__details";
+            if (!opts.collapsed) details.open = true;
+
+            const summary = document.createElement("summary");
+            summary.className = "wst-section__header";
+
+            const chevron = make("span", "wst-section__chevron");
+            chevron.textContent = "›";
+            summary.appendChild(chevron);
+            summary.appendChild(text("span", "wst-section__title", title));
+            details.appendChild(summary);
+
+            const body = make("div", "wst-section__body");
+            children.forEach(c => c && body.appendChild(c));
+            details.appendChild(body);
+            wrap.appendChild(details);
+        }
+    } else {
+        const body = make("div", "wst-section__body");
+        children.forEach(c => c && body.appendChild(c));
+        wrap.appendChild(body);
+    }
+
+    return wrap;
+}
+
+// ── Stat card ────────────────────────────────────────────────
+function statCard(label, value, sub = "") {
+    const card = make("div", "wst-stat");
+    card.appendChild(text("div", "wst-stat__value", value));
+    card.appendChild(text("div", "wst-stat__label", label));
+    if (sub) card.appendChild(text("div", "wst-stat__sub", sub));
+    return card;
+}
+
+// ── Bar chart ────────────────────────────────────────────────
+function barChart(rows, { showCount = true, showPct = false, total = 0, maxBars = 0 } = {}) {
+    const wrap = make("div", "wst-bars");
+    const data = maxBars ? rows.slice(0, maxBars) : rows;
+    const max  = data[0]?.count || 1;
+    data.forEach(({ label, count }) => {
+        const row = make("div", "wst-bar-row");
+        row.appendChild(text("span", "wst-bar-label", toTitleCase(label)));
+        const track = make("div", "wst-bar-track");
+        const fill  = make("div", "wst-bar-fill");
+        fill.style.width = pct(count, max) + "%";
+        track.appendChild(fill);
+        row.appendChild(track);
+        const val = make("span", "wst-bar-value");
+        val.textContent = showCount ? String(count) : "";
+        if (showPct && total) val.textContent += (showCount ? "  " : "") + `${pct(count, total)}%`;
+        row.appendChild(val);
+        wrap.appendChild(row);
+    });
+    return wrap;
+}
+
+// ── Donut chart (pure CSS + SVG-free, div-based) ─────────────
+// Uses a conic-gradient ring to show top segments
+/**
+ * Build a donut chart from {label, count} rows.
+ * colorFn(label) → CSS color string; falls back to the earthy palette.
+ */
+function donutChart(rows, maxSlices = 8, colorFn = null) {
+    const fallback = [
+        "#8b6f5e","#b8956a","#7a9e7e","#c9a96e",
+        "#9b8ea0","#c17f74","#6e8fa3","#a3956e",
+    ];
+    const slices = rows.slice(0, maxSlices);
+    const total  = slices.reduce((s, r) => s + r.count, 0);
+
+    const colorOf = (label, i) => {
+        if (colorFn) {
+            const c = colorFn(label);
+            if (c) return c;
+        }
+        return fallback[i % fallback.length];
+    };
+
+    let deg = 0;
+    const stops = slices.map((r, i) => {
+        const share = (r.count / total) * 360;
+        const stop  = `${colorOf(r.label, i)} ${deg}deg ${deg + share}deg`;
+        deg += share;
+        return stop;
+    }).join(", ");
+
+    const wrap  = make("div", "wst-donut-wrap");
+    const ring  = make("div", "wst-donut-ring");
+    ring.style.background = `conic-gradient(${stops})`;
+    const hole  = make("div", "wst-donut-hole");
+    ring.appendChild(hole);
+    wrap.appendChild(ring);
+
+    const legend = make("div", "wst-donut-legend");
+    slices.forEach((r, i) => {
+        const item = make("div", "wst-donut-legend-item");
+        const dot  = make("span", "wst-donut-legend-dot");
+        dot.style.background = colorOf(r.label, i);
+        const lbl  = make("span", "wst-donut-legend-label");
+        lbl.textContent = `${toTitleCase(r.label)} — ${pct(r.count, total)}%`;
+        item.appendChild(dot);
+        item.appendChild(lbl);
+        legend.appendChild(item);
+    });
+    wrap.appendChild(legend);
+    return wrap;
+}
+
+/** Color donut: uses CONFIG.COLOR_MAP for segment colors */
+function colorDonutChart(rows, maxSlices = 8) {
+    return donutChart(rows, maxSlices, label => {
+        return CONFIG.COLOR_MAP[lc(label)] || null;
+    });
+}
+
+/** Season donut: uses CONFIG.SEASON_COLORS for segment colors */
+function seasonDonutChart(rows) {
+    return donutChart(rows, 4, label => {
+        return CONFIG.SEASON_COLORS[lc(label)] || null;
+    });
+}
+
+// ── Value vs cost grouped bar (by subcategory) ───────────────
+function valueCostChart(pages) {
+    // Group by subcategory: {label, itemCount, totalCost, avgCost}
+    const map = {};
+    pages.forEach(p => {
+        const sub  = toTitleCase(fk(p, "subcategory") || "Other");
+        const cost = parseCost(fk(p, "cost"));
+        if (!map[sub]) map[sub] = { count: 0, cost: 0 };
+        map[sub].count++;
+        map[sub].cost += cost;
+    });
+    const rows = Object.entries(map)
+        .map(([label, d]) => ({ label, count: d.count, cost: d.cost, avg: d.count ? d.cost / d.count : 0 }))
+        .sort((a, b) => b.cost - a.cost)
+        .slice(0, 10);
+
+    const maxCost = rows[0]?.cost || 1;
+    const wrap = make("div", "wst-bars wst-bars--dual");
+
+    rows.forEach(r => {
+        const row = make("div", "wst-bar-row wst-bar-row--dual");
+        row.appendChild(text("span", "wst-bar-label", r.label));
+
+        const col = make("div", "wst-bar-col");
+
+        const costRow  = make("div", "wst-bar-track-wrap");
+        const cLabel   = text("span", "wst-bar-sublabel", "Total");
+        const cTrack   = make("div", "wst-bar-track");
+        const cFill    = make("div", "wst-bar-fill wst-bar-fill--cost");
+        cFill.style.width = pct(r.cost, maxCost) + "%";
+        cTrack.appendChild(cFill);
+        const cVal     = text("span", "wst-bar-value", fmt$(r.cost));
+        costRow.appendChild(cLabel);
+        costRow.appendChild(cTrack);
+        costRow.appendChild(cVal);
+
+        const avgRow   = make("div", "wst-bar-track-wrap");
+        const aLabel   = text("span", "wst-bar-sublabel", "Avg");
+        const aTrack   = make("div", "wst-bar-track");
+        const aFill    = make("div", "wst-bar-fill wst-bar-fill--avg");
+        aFill.style.width = pct(r.avg, maxCost) + "%";
+        aTrack.appendChild(aFill);
+        const aVal     = text("span", "wst-bar-value", fmt$(r.avg));
+        avgRow.appendChild(aLabel);
+        avgRow.appendChild(aTrack);
+        avgRow.appendChild(aVal);
+
+        col.appendChild(costRow);
+        col.appendChild(avgRow);
+        row.appendChild(col);
+        wrap.appendChild(row);
+    });
+    return wrap;
+}
+
+// ── Size breakdown (bar-row style) ───────────────────────────
+/** Strip "men's" / "women's" / "men" / "women" prefix from sizes */
+function cleanSize(size) {
+    return String(size).replace(/^(men'?s?|women'?s?|unisex)\s*/i, "").trim();
+}
+
+function sizeTable(pages) {
+    // { subcategory: { cleanedSize: count } }
+    const map = {};
+    pages.forEach(p => {
+        const sub  = toTitleCase(fk(p, "subcategory") || "Other");
+        const size = cleanSize(fk(p, "size") || "");
+        if (!size) return;
+        if (!map[sub]) map[sub] = {};
+        map[sub][size] = (map[sub][size] || 0) + 1;
+    });
+
+    const wrap = make("div", "wst-bars");
+    Object.entries(map)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .forEach(([sub, sizes]) => {
+            const row    = make("div", "wst-bar-row");
+            const label  = text("span", "wst-bar-label", sub);
+            row.appendChild(label);
+
+            // Build "XS (×1) · S (×2)" string
+            const parts = Object.entries(sizes)
+                .sort((a, b) => b[1] - a[1])
+                .map(([s, n]) => `${s} (×${n})`);
+            const val = text("span", "wst-bar-value wst-bar-value--sizes", parts.join("  ·  "));
+            row.appendChild(val);
+            wrap.appendChild(row);
+        });
+    return wrap;
+}
+
+// ── Brand × Subcategory sizes (bar-row style) ────────────────
+function brandSizeTable(pages) {
+    // { "Brand · Subcategory": { cleanedSize: count } }
+    const map = {};
+    pages.forEach(p => {
+        const brand = String(fk(p, "brand") || "Unknown").trim();
+        const sub   = toTitleCase(fk(p, "subcategory") || "Other");
+        const size  = cleanSize(fk(p, "size") || "");
+        if (!size) return;
+        const key = `${brand} · ${sub}`;
+        if (!map[key]) map[key] = {};
+        map[key][size] = (map[key][size] || 0) + 1;
+    });
+
+    const wrap = make("div", "wst-bars");
+    Object.entries(map)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .forEach(([key, sizes]) => {
+            const row   = make("div", "wst-bar-row");
+            const label = text("span", "wst-bar-label wst-bar-label--wide", key);
+            row.appendChild(label);
+
+            const parts = Object.entries(sizes)
+                .sort((a, b) => b[1] - a[1])
+                .map(([s, n]) => `${s} (x${n})`);
+            const val = text("span", "wst-bar-value wst-bar-value--sizes", parts.join("  ·  "));
+            row.appendChild(val);
+            wrap.appendChild(row);
+        });
+    return wrap;
+}
+
+// ── Status breakdown (active vs total) ───────────────────────
+function statusBar(pages, total) {
+    const counts = {};
+    pages.forEach(p => {
+        const s = lc(fk(p, "status")) || "unknown";
+        counts[s] = (counts[s] || 0) + 1;
+    });
+
+    const order = ["clean", "hamper", "laundry", "donate", "repair", "replace"];
+    const palette = {
+        clean:   "#7a9e7e",
+        hamper:  "#c9a96e",
+        laundry: "#b8956a",
+        donate:  "#c17f74",
+        repair:  "#8b6f5e",
+        replace: "#9b8ea0",
+    };
+
+    const wrap  = make("div", "wst-status-wrap");
+    const track = make("div", "wst-status-track");
+
+    order.forEach(s => {
+        if (!counts[s]) return;
+        const seg = make("div", "wst-status-seg");
+        seg.style.width      = pct(counts[s], total) + "%";
+        seg.style.background = palette[s] || "#aaa";
+        seg.title            = `${toTitleCase(s)}: ${counts[s]}`;
+        track.appendChild(seg);
+    });
+    wrap.appendChild(track);
+
+    // Legend
+    const legend = make("div", "wst-status-legend");
+    order.forEach(s => {
+        if (!counts[s]) return;
+        const item = make("div", "wst-donut-legend-item");
+        const dot  = make("span", "wst-donut-legend-dot");
+        dot.style.background = palette[s] || "#aaa";
+        item.appendChild(dot);
+        item.appendChild(text("span", "wst-donut-legend-label",
+            `${toTitleCase(s)}: ${counts[s]} (${pct(counts[s], total)}%)`));
+        legend.appendChild(item);
+    });
+    wrap.appendChild(legend);
+    return wrap;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  🔨  PAGE ASSEMBLY
+// ═══════════════════════════════════════════════════════════════
+
+const ROOT = dv.container;
+ROOT.className = "wst-root";
+
+// ── 1. Summary strip ─────────────────────────────────────────
+const summaryStrip = make("div", "wst-summary-strip");
+[
+    statCard("Total Items",     String(active.length)),
+    statCard("Total Value",     fmt$(totalCost), `across ${active.length} items`),
+    statCard("Avg Cost / Item", fmt$(active.length ? totalCost / active.length : 0)),
+    statCard("Wishlist",        String(wishlist.length), `${fmt$(wishCost)} estimated`),
+].forEach(c => summaryStrip.appendChild(c));
+ROOT.appendChild(summaryStrip);
+
+// ── 2. Top Colors & Seasons ───────────────────────────────────
+const colorData  = tally(active, p => fk(p, "color"), true);
+const seasonData = tally(active, p => fk(p, "season"), true);
+
+const csRow = make("div", "wst-row");
+csRow.appendChild(section("Top Colors", colorDonutChart(colorData, CONFIG.topN), { collapsible: false }));
+csRow.appendChild(section("By Season",  seasonDonutChart(seasonData),             { collapsible: false }));
+ROOT.appendChild(csRow);
+
+// ── 3. Active vs Total — no header, not collapsible ───────────
+const activeCount = inRotation.length;
+const totalCount  = active.length;
+const activeStrip = make("div", "wst-summary-strip wst-summary-strip--sub");
+[
+    statCard("In Rotation",  String(activeCount), "clean · hamper · laundry"),
+    statCard("Sidelined",    String(totalCount - activeCount), "donate · repair · replace"),
+    statCard("Archived",     String(archived.length), "donated · sold · trashed"),
+].forEach(c => activeStrip.appendChild(c));
+ROOT.appendChild(section(null, activeStrip, statusBar(active, totalCount)));
+
+// ── 4. Items by Location — no header, not collapsible ─────────
+const locationData = tally(
+    active.filter(p => lc(fk(p, "location")) !== "archive"),
+    p => fk(p, "location")
+);
+ROOT.appendChild(section(null, barChart(locationData, { showCount: true })));
+
+// ── 5. Brands & Styling Tags — not collapsible ────────────────
+const brandData = tally(active, p => fk(p, "brand"));
+const tagData   = tally(active, p => fk(p, "styling_tags"), true);
+
+const btRow = make("div", "wst-row");
+btRow.appendChild(section(
+    `Top ${CONFIG.topN} Brands`,
+    barChart(brandData, { maxBars: CONFIG.topN, showCount: true })
+));
+btRow.appendChild(section(
+    `Top ${CONFIG.topN} Styling Tags`,
+    barChart(tagData, { maxBars: CONFIG.topN, showCount: true })
+));
+ROOT.appendChild(btRow);
+
+// ── 6. By Category & Subcategory — collapsible, open ─────────
+const catRow = make("div", "wst-row");
+catRow.appendChild(section(
+    "By Category",
+    barChart(tally(active, p => fk(p, "category"))),
+    { collapsed: true }
+));
+catRow.appendChild(section(
+    "By Subcategory",
+    barChart(tally(active, p => fk(p, "subcategory")), { maxBars: 12 }),
+    { collapsed: true }
+));
+ROOT.appendChild(catRow);
+
+// ── 7. Most & Least Versatile — collapsible, open ────────────
+const byPairs  = linkCount(active, "pairs").slice(0, CONFIG.topN);
+const byAvoids = linkCount(active, "avoids").slice(0, CONFIG.topN);
+
+const mostVers = make("div", "wst-bars");
+byPairs.filter(r => r.count > 0).forEach(({ page: p, count }) => {
+    const row = make("div", "wst-bar-row");
+    const name = [fk(p, "brand"), fk(p, "subcategory")].filter(Boolean).join(" ");
+    row.appendChild(text("span", "wst-bar-label", name || p.file.name));
+    const track = make("div", "wst-bar-track");
+    const fill  = make("div", "wst-bar-fill");
+    fill.style.width = pct(count, byPairs[0]?.count || 1) + "%";
+    track.appendChild(fill);
+    row.appendChild(track);
+    row.appendChild(text("span", "wst-bar-value", `${count} pairs`));
+    mostVers.appendChild(row);
+});
+
+const leastVers = make("div", "wst-bars");
+byAvoids.filter(r => r.count > 0).forEach(({ page: p, count }) => {
+    const row = make("div", "wst-bar-row");
+    const name = [fk(p, "brand"), fk(p, "subcategory")].filter(Boolean).join(" ");
+    row.appendChild(text("span", "wst-bar-label", name || p.file.name));
+    const track = make("div", "wst-bar-track");
+    const fill  = make("div", "wst-bar-fill wst-bar-fill--avoid");
+    fill.style.width = pct(count, byAvoids[0]?.count || 1) + "%";
+    track.appendChild(fill);
+    row.appendChild(track);
+    row.appendChild(text("span", "wst-bar-value", `${count} avoids`));
+    leastVers.appendChild(row);
+});
+
+const verRow = make("div", "wst-row");
+verRow.appendChild(section("Most Versatile",  mostVers));
+verRow.appendChild(section("Least Versatile", leastVers));
+ROOT.appendChild(verRow);
+
+// ── 8. Sizes by Subcategory — collapsed ───────────────────────
+ROOT.appendChild(section("Sizes by Subcategory", sizeTable(active), { collapsed: true }));
+
+// ── 9. Sizes by Brand & Type — collapsed ──────────────────────
+ROOT.appendChild(section("Sizes by Brand & Type", brandSizeTable(active), { collapsed: true }));
+
+// ── 10. Value & Cost by Subcategory — collapsed ───────────────
+ROOT.appendChild(section(
+    "Value & Cost by Subcategory",
+    valueCostChart(active),
+    { collapsed: true }
+));
+```
