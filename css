@@ -1,0 +1,762 @@
+/* ============================================================
+   WARDROBE STYLIST — CSS Snippet
+   Place in .obsidian/snippets/ and enable in
+   Settings → Appearance → CSS Snippets
+
+   Every value is a custom property defined on .ws-root.
+   To restyle any part of the stylist, override a variable
+   in your own snippet — no need to edit this file.
+   ============================================================ */
+
+
+/* ── Custom Properties ─────────────────────────────────────── */
+
+.ws-root {
+
+    /* Typography
+    --------------------------------------------------------- */
+    --ws-font-serif:            "Georgia", "Times New Roman", serif;
+    --ws-font-ui:               -apple-system, sans-serif;
+
+    --ws-font-size-base:        13px;   /* root text size */
+    --ws-font-size-wordmark:    16px;   /* "Wardrobe Stylist" header */
+    --ws-font-size-label:       9px;    /* filter group + slot labels */
+    --ws-font-size-pill:        11px;   /* filter pills */
+    --ws-font-size-select:      12px;   /* dropdowns */
+    --ws-font-size-action:      10px;   /* Random / Log Outfit buttons */
+    --ws-font-size-debug:       10px;   /* debug toggle */
+    --ws-font-size-card-title:  12px;   /* item name on card */
+    --ws-font-size-card-meta:   10px;   /* size · color line */
+    --ws-font-size-card-tags:   10px;   /* styling tags */
+    --ws-font-size-badge-req:   9px;    /* ✦ required badge */
+    --ws-font-size-badge-score: 10px;   /* debug score badge */
+    --ws-font-size-shuffle:     14px;   /* ↻ shuffle button */
+    --ws-font-size-placeholder: 11px;   /* "Select a hero item" text */
+    --ws-font-size-counter:     10px;   /* "1 / 5" slot counter */
+    --ws-font-size-slot-empty:  11px;   /* "No footwear match" text */
+    --ws-font-size-hint:        12px;   /* suggestion panel hint */
+    --ws-font-size-toast:       12px;   /* toast notification */
+    --ws-line-height:           1.5;
+
+    /* Colors
+    --------------------------------------------------------- */
+    /* Wearable toggle dot */
+    --ws-color-wearable:        #5aaf87;
+    --ws-color-wearable-glow:   rgba(90, 175, 135, 0.18);
+
+    /* Required badge + slot label */
+    --ws-color-required:        rgba(180, 120, 60, 0.88);
+    --ws-color-required-label:  rgba(180, 120, 60, 0.80);
+
+    /* Debug score badge */
+    --ws-color-score-bg:        rgba(0, 0, 0, 0.58);
+
+    /* Action button hover underline */
+    --ws-color-action-hover:    #8b6f5e;
+
+    /* Card hover shadow color */
+    --ws-color-card-shadow:     rgba(0, 0, 0, 0.09);
+
+    /* Placeholder icon opacity */
+    --ws-placeholder-icon-opacity: 0.15;
+
+    /* Toast */
+    --ws-color-toast-bg:        #2b2b2b;
+    --ws-color-toast-error:     #b94040;
+
+    /* Layout
+    --------------------------------------------------------- */
+    --ws-max-width:             1140px;
+
+    /* Canvas grid */
+    --ws-canvas-hero-col:       220px;  /* hero panel column width */
+    --ws-canvas-gap:            28px;   /* gap between hero and suggestions */
+
+    /* Spacing */
+    --ws-header-padding:        14px 0 12px;
+    --ws-filter-gap-row:        12px;
+    --ws-filter-gap-col:        20px;
+    --ws-filter-padding-bottom: 16px;
+    --ws-filter-margin-bottom:  22px;
+    --ws-header-margin-bottom:  16px;
+    --ws-suggestion-gap:        16px;   /* gap between slot cards */
+    --ws-slot-inner-gap:        5px;    /* gap inside a slot (label → card → counter) */
+
+    /* Cards
+    --------------------------------------------------------- */
+    --ws-card-width:            152px;
+    --ws-card-radius:           10px;
+    --ws-card-img-height:       200px;
+    --ws-card-info-padding:     9px 11px 11px;
+    --ws-card-hover-lift:       translateY(-1px);
+
+    /* Hero card */
+    --ws-card-hero-width:       200px;
+    --ws-card-hero-img-height:  264px;
+
+    /* Placeholder (empty hero) */
+    --ws-placeholder-width:     200px;
+    --ws-placeholder-height:    264px;
+    --ws-placeholder-radius:    10px;
+
+    /* Slot empty state */
+    --ws-slot-empty-width:      152px;
+    --ws-slot-empty-min-height: 80px;
+    --ws-slot-empty-radius:     8px;
+
+    /* Badges
+    --------------------------------------------------------- */
+    --ws-badge-radius:          10px;
+    --ws-badge-padding:         2px 7px;
+
+    /* Shuffle button
+    --------------------------------------------------------- */
+    --ws-shuffle-size:          26px;
+    --ws-shuffle-bottom:        44px;  /* distance from card bottom edge */
+    --ws-shuffle-right:         8px;
+
+    /* Pill filter
+    --------------------------------------------------------- */
+    --ws-pill-radius:           20px;
+    --ws-pill-padding:          3px 11px;
+    --ws-pill-line-height:      1.7;
+
+    /* Select / dropdown
+    --------------------------------------------------------- */
+    --ws-select-radius:         6px;
+    --ws-select-padding:        5px 10px;
+    --ws-select-min-width:      130px;
+    --ws-select-font-size:      10px;
+    --ws-select-font-weight:    400;
+    --ws-select-letter-spacing: 0.1em;
+
+    /* Action buttons (Random / Log Outfit)
+    --------------------------------------------------------- */
+    --ws-action-padding:        4px 10px;
+    --ws-action-underline-height: 1px;
+    --ws-action-divider-width:  1px;
+    --ws-action-divider-height: 10px;
+    --ws-action-letter-spacing: 0.1em;
+
+    /* Debug toggle
+    --------------------------------------------------------- */
+    --ws-debug-radius:          4px;
+    --ws-debug-padding:         3px 8px;
+
+    /* Wearable dot
+    --------------------------------------------------------- */
+    --ws-wearable-dot-size:     16px;
+    --ws-wearable-letter-spacing: 0.04em;
+
+    /* Wordmark
+    --------------------------------------------------------- */
+    --ws-wordmark-letter-spacing: 0.12em;
+
+    /* Toast
+    --------------------------------------------------------- */
+    --ws-toast-radius:          8px;
+    --ws-toast-padding:         10px 18px;
+    --ws-toast-bottom:          22px;
+    --ws-toast-right:           22px;
+
+    /* Transitions
+    --------------------------------------------------------- */
+    --ws-transition-fast:       0.12s;
+    --ws-transition-medium:     0.15s;
+    --ws-transition-slow:       0.30s;
+    --ws-transition-action:     0.20s ease;
+}
+
+
+/* ── Root ──────────────────────────────────────────────────── */
+
+.ws-root {
+    font-family: var(--ws-font-serif);
+    font-size: var(--ws-font-size-base);
+    color: var(--text-normal);
+    max-width: var(--ws-max-width);
+    margin: 0 auto;
+    padding: 2px 2px 24px;
+    line-height: var(--ws-line-height);
+}
+
+
+/* ── Header ────────────────────────────────────────────────── */
+
+.ws-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--ws-header-padding);
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: var(--ws-header-margin-bottom);
+}
+
+.ws-header__wordmark {
+    font-family: var(--ws-font-serif);
+    font-size: var(--ws-font-size-wordmark);
+    font-weight: normal;
+    letter-spacing: var(--ws-wordmark-letter-spacing);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.ws-header__icon {
+    font-size: 11px;
+    opacity: 0.5;
+    margin-right: 2px;
+}
+
+.ws-header__right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+
+/* ── Wearable toggle ───────────────────────────────────────── */
+
+.ws-wearable-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+    font-size: var(--ws-font-size-action);
+    font-family: var(--ws-font-ui);
+    letter-spacing: var(--ws-wearable-letter-spacing);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.ws-wearable-dot {
+    width: var(--ws-wearable-dot-size);
+    height: var(--ws-wearable-dot-size);
+    border-radius: 50%;
+    border: 1.5px solid var(--background-modifier-border);
+    display: inline-block;
+    transition:
+        background var(--ws-transition-medium),
+        border-color var(--ws-transition-medium);
+    flex-shrink: 0;
+}
+
+.ws-wearable-dot--on {
+    background: var(--ws-color-wearable);
+    border-color: var(--ws-color-wearable);
+    box-shadow: 0 0 0 2px var(--ws-color-wearable-glow);
+}
+
+.ws-wearable-text {
+    color: var(--text-faint);
+}
+
+
+/* ── Debug toggle ──────────────────────────────────────────── */
+
+.ws-debug-label {
+    font-family: var(--ws-font-ui);
+    font-size: var(--ws-font-size-debug);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--ws-debug-radius);
+    padding: var(--ws-debug-padding);
+    transition:
+        color var(--ws-transition-fast),
+        border-color var(--ws-transition-fast);
+}
+
+.ws-debug-label:hover {
+    color: var(--text-muted);
+    border-color: var(--text-faint);
+}
+
+
+/* ── Filter bar ────────────────────────────────────────────── */
+
+.ws-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--ws-filter-gap-row) var(--ws-filter-gap-col);
+    padding-bottom: var(--ws-filter-padding-bottom);
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: var(--ws-filter-margin-bottom);
+}
+
+/* Generic filter group (formula selector, actions) */
+.ws-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Pill-type filter group (Season / Mood / Occasion) */
+.ws-filter-group--pills {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Group heading label (e.g. "SEASON", "FORMULA") */
+.ws-filter-label {
+    font-family: var(--ws-font-ui);
+    font-size: var(--ws-font-size-label);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+/* Pill container */
+.ws-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+/* Individual pill button */
+.ws-pill {
+    font-family: var(--ws-font-ui);
+    font-size: var(--ws-font-size-pill);
+    padding: var(--ws-pill-padding);
+    border-radius: var(--ws-pill-radius);
+    border: 1px solid var(--background-modifier-border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    line-height: var(--ws-pill-line-height);
+    white-space: nowrap;
+    transition: all var(--ws-transition-fast);
+}
+
+.ws-pill:hover {
+    border-color: var(--interactive-accent);
+    color: var(--interactive-accent);
+}
+
+/* Active pill */
+.ws-pill--on {
+    background: var(--interactive-accent);
+    border-color: var(--interactive-accent);
+    color: #fff !important;
+}
+
+/* Formula / hero dropdown */
+.ws-select {
+    font-family: var(--ws-font-ui);
+    font-size: var(--ws-select-font-size) !important;
+    font-weight: var(--ws-select-font-weight);
+    letter-spacing: var(--ws-select-letter-spacing);
+    text-transform: uppercase;
+    border: none !important;
+    box-shadow: none;
+    background: none;
+    color: var(--text-normal);
+    cursor: pointer;
+    outline: none;
+}
+
+
+/* ── Action buttons (Random / Log Outfit) ──────────────────── */
+
+/* Group wrapper — pushed to far right of filter bar */
+.ws-action-group {
+    margin-left: auto;
+}
+
+/* Flex row containing both buttons + divider */
+.ws-actions {
+    display: flex;
+    align-items: center;
+}
+
+/* Base button reset — applied to all .ws-btn elements */
+.ws-btn {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Individual action button */
+.ws-btn--action {
+    font-family: var(--ws-font-ui);
+    font-size: var(--ws-font-size-action);
+    font-weight: 400;
+    letter-spacing: var(--ws-action-letter-spacing);
+    text-transform: uppercase;
+    color: var(--text-faint);
+    background: none;
+    border: none;
+    padding: var(--ws-action-padding);
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
+    transition: color var(--ws-transition-medium);
+}
+
+/* Animated underline on hover */
+.ws-btn--action::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 10px;
+    right: 10px;
+    height: var(--ws-action-underline-height);
+    background: var(--ws-color-action-hover);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--ws-transition-action);
+}
+
+.ws-btn--action:hover {
+    color: var(--ws-color-action-hover);
+}
+
+.ws-btn--action:hover::after {
+    transform: scaleX(1);
+}
+
+/* Thin vertical rule between action buttons */
+.ws-action-divider {
+    display: inline-block;
+    width: var(--ws-action-divider-width);
+    height: var(--ws-action-divider-height);
+    background: var(--background-modifier-border);
+    flex-shrink: 0;
+}
+
+
+/* ── Canvas ────────────────────────────────────────────────── */
+
+/* Two-column grid: hero left, suggestions right */
+.ws-canvas {
+    display: grid;
+    grid-template-columns: var(--ws-canvas-hero-col) 1fr;
+    column-gap: var(--ws-canvas-gap);
+    align-items: start;
+}
+
+/* Base panel */
+.ws-panel {
+    display: flex;
+}
+
+/* Hero panel — stacks card + selector vertically */
+.ws-panel--hero {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Suggestions panel — wraps slots horizontally */
+.ws-panel--suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ws-suggestion-gap);
+    align-items: flex-start;
+}
+
+
+/* ── Cards ─────────────────────────────────────────────────── */
+
+/* Base card (suggestion) */
+.ws-card {
+    position: relative;
+    width: var(--ws-card-width);
+    border-radius: var(--ws-card-radius);
+    overflow: hidden;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    flex-shrink: 0;
+    transition:
+        box-shadow var(--ws-transition-medium),
+        transform var(--ws-transition-medium);
+}
+
+.ws-card:hover {
+    box-shadow: 0 6px 22px var(--ws-color-card-shadow);
+    transform: var(--ws-card-hover-lift);
+}
+
+/* Hero card modifier */
+.ws-card--hero {
+    width: var(--ws-card-hero-width);
+}
+
+/* Image area */
+.ws-card__img {
+    width: 100%;
+    height: var(--ws-card-img-height);
+    background-size: cover;
+    background-position: center top;
+    background-color: var(--background-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ws-card--hero .ws-card__img {
+    height: var(--ws-card-hero-img-height);
+}
+
+/* Placeholder icon shown when no image is set */
+.ws-card__no-img {
+    font-size: 32px;
+    opacity: 0.18;
+}
+
+/* Info section below image */
+.ws-card__info {
+    padding: var(--ws-card-info-padding);
+}
+
+/* Item display name */
+.ws-card__title {
+    font-family: var(--ws-font-serif);
+    font-size: var(--ws-font-size-card-title);
+    color: var(--text-normal);
+    line-height: 1.4;
+    margin-bottom: 3px;
+}
+
+/* Size · color line */
+.ws-card__meta {
+    font-family: var(--ws-font-ui);
+    font-size: var(--ws-font-size-card-meta);
+    color: var(--text-muted);
+    margin-bottom: 2px;
+}
+
+/* Styling tags line */
+.ws-card__tags {
+    font-family: var(--ws-font-ui);
+    font-size: var(--ws-font-size-card-tags);
+    color: var(--text-faint);
+    font-style: italic;
+}
+
+
+/* ── Required badge ────────────────────────────────────────── */
+
+/* "✦ required" badge, top-left of suggestion card */
+.ws-required-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: var(--ws-color-required);
+    color: #fff;
+    font-family: var(--ws-font-ui);
+    font-size: var(--ws-font-size-badge-req);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: var(--ws-badge-padding);
+    border-radius: var(--ws-badge-radius);
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+}
+
+
+/* ── Score badge (debug mode) ──────────────────────────────── */
+
+/* Numeric score badge, top-right of suggestion card */
+.ws-score-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: var(--ws-color-score-bg);
+    color: #fff;
+    font-family: var(--ws-font-ui);
+    font-size: var(--ws-font-size-badge-score);
+    font-weight: 700;
+    padding: var(--ws-badge-padding);
+    border-radius: var(--ws-badge-radius);
+    backdrop-filter: blur(4px);
+    cursor: help;
+}
+
+
+/* ── Shuffle button ────────────────────────────────────────── */
+
+/* ↻ button, appears on card hover */
+.ws-shuffle-btn {
+    position: absolute;
+    bottom: var(--ws-shuffle-bottom);
+    right: var(--ws-shuffle-right);
+    width: var(--ws-shuffle-size);
+    height: var(--ws-shuffle-size);
+    border-radius: 50%;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    color: var(--text-muted);
+    font-size: var(--ws-font-size-shuffle);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    opacity: 0;
+    transition: all var(--ws-transition-fast);
+}
+
+.ws-card:hover .ws-shuffle-btn {
+    opacity: 1;
+}
+
+.ws-shuffle-btn:hover {
+    background: var(--interactive-accent);
+    border-color: var(--interactive-accent);
+    color: #fff;
+}
+
+
+/* ── Hero selector ─────────────────────────────────────────── */
+
+/* Wrapper for the hero dropdown */
+.ws-hero-selector {
+    width: 100%;
+}
+
+/* Hero dropdown (extends base .ws-select) */
+.ws-select--hero {
+    width: 100%;
+}
+
+
+/* ── Card placeholder ──────────────────────────────────────── */
+
+/* Shown in hero panel when no hero is selected */
+.ws-card-placeholder {
+    width: var(--ws-placeholder-width);
+    height: var(--ws-placeholder-height);
+    border-radius: var(--ws-placeholder-radius);
+    border: 1.5px dashed var(--background-modifier-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: var(--background-secondary);
+}
+
+/* ✦ icon inside placeholder */
+.ws-placeholder-icon {
+    font-size: 28px;
+    opacity: var(--ws-placeholder-icon-opacity);
+}
+
+/* "Select a hero item below" text */
+.ws-placeholder-text {
+    font-family: var(--ws-font-ui);
+    font-size: var(--ws-font-size-placeholder);
+    color: var(--text-faint);
+    text-align: center;
+    margin: 0;
+    line-height: 1.6;
+}
+
+
+/* ── Slots ─────────────────────────────────────────────────── */
+
+/* Individual slot container (label + card + counter) */
+.ws-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--ws-slot-inner-gap);
+}
+
+/* Slot category label (e.g. "FOOTWEAR") */
+.ws-slot-label {
+    font-family: var(--ws-font-ui);
+    font-size: var(--ws-font-size-label);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    align-self: flex-start;
+}
+
+/* Required slot label modifier — amber color + ✦ suffix */
+.ws-slot-label--required {
+    color: var(--ws-color-required-label);
+}
+
+.ws-slot-label--required::after {
+    content: "  ✦";
+    opacity: 0.6;
+}
+
+/* "1 / 5" pagination counter under a slot card */
+.ws-slot-counter {
+    font-family: var(--ws-font-ui);
+    font-size: var(--ws-font-size-counter);
+    color: var(--text-faint);
+}
+
+/* Shown when no items match the slot */
+.ws-slot-empty {
+    width: var(--ws-slot-empty-width);
+    min-height: var(--ws-slot-empty-min-height);
+    border-radius: var(--ws-slot-empty-radius);
+    background: var(--background-secondary);
+    border: 1px dashed var(--background-modifier-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--ws-font-ui);
+    font-size: var(--ws-font-size-slot-empty);
+    color: var(--text-faint);
+    font-style: italic;
+    padding: 10px;
+    text-align: center;
+}
+
+
+/* ── Hint text ─────────────────────────────────────────────── */
+
+/* Shown in suggestion panel before a hero is selected */
+.ws-hint {
+    font-family: var(--ws-font-ui);
+    font-size: var(--ws-font-size-hint);
+    color: var(--text-faint);
+    font-style: italic;
+    margin: 0;
+    align-self: center;
+}
+
+
+/* ── Toast notification ────────────────────────────────────── */
+
+/* Base toast */
+.ws-toast {
+    position: fixed;
+    bottom: var(--ws-toast-bottom);
+    right: var(--ws-toast-right);
+    background: var(--ws-color-toast-bg);
+    color: #fff;
+    font-family: var(--ws-font-ui);
+    font-size: var(--ws-font-size-toast);
+    font-weight: 500;
+    padding: var(--ws-toast-padding);
+    border-radius: var(--ws-toast-radius);
+    z-index: 9999;
+    opacity: 1;
+    pointer-events: none;
+    transition: opacity var(--ws-transition-slow);
+}
+
+/* Error state */
+.ws-toast--error {
+    background: var(--ws-color-toast-error);
+}
+
+/* Fading out */
+.ws-toast--out {
+    opacity: 0;
+}
