@@ -55,17 +55,15 @@
     --wk-group-columns-pt:      12px;   /* padding above columns */
 
     /* Column */
-    --wk-col-width:             140px;
     --wk-col-radius:            8px;
     --wk-col-header-padding:    8px 10px 6px;
     --wk-col-body-padding:      8px;
-    --wk-col-body-gap:          8px;    /* gap between cards */
+    --wk-col-body-gap:          8px;    /* keep in sync with CONFIG.cardGap */
     --wk-col-min-height:        60px;   /* minimum drop zone height */
 
-    /* Card */
-    --wk-card-width:            120px;
-    --wk-card-height:           140px;
-    --wk-card-radius:           6px;
+    /* Card — base fallback; actual sizes set per-column by JS */
+    --wk-card-w:                90px;   /* overridden by JS via inline property */
+    --wk-card-h:                117px;  /* overridden by JS via inline property */
 
     /* Toast */
     --wk-toast-padding:         10px 18px;
@@ -189,10 +187,10 @@
 
 /* ── Column ────────────────────────────────────────────────── */
 
-/* Individual status column */
+/* Individual status column — fills equal share of group width */
 .wk-col {
-    width: var(--wk-col-width);
-    flex-shrink: 0;
+    flex: 1;
+    min-width: 0;
     border-radius: var(--wk-col-radius);
     border: 1px solid var(--wk-color-col-border);
     background: var(--background-secondary);
@@ -215,6 +213,7 @@
     justify-content: space-between;
     padding: var(--wk-col-header-padding);
     border-bottom: 1px solid var(--wk-color-col-border);
+    flex-shrink: 0;
 }
 
 /* Status name */
@@ -239,24 +238,31 @@
     text-align: center;
 }
 
-/* Scrollable cards area */
+/*
+ * Card grid body.
+ * Cards tile left-to-right in rows of up to CONFIG.maxRows (3).
+ * When all 3 rows are full a new card column begins automatically.
+ * --wk-card-w and --wk-card-h are set per column by the JS sizer.
+ */
 .wk-col__body {
     padding: var(--wk-col-body-padding);
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: repeat(3, var(--wk-card-h, 117px));
+    grid-auto-flow: column;
+    grid-auto-columns: var(--wk-card-w, 90px);
     gap: var(--wk-col-body-gap);
     min-height: var(--wk-col-min-height);
-    flex: 1;
+    overflow: hidden;
 }
 
 
 /* ── Card ──────────────────────────────────────────────────── */
 
-/* Image-only draggable card */
+/* Image-only draggable card — width and height set by JS sizer */
 .wk-card {
-    width: var(--wk-card-width);
-    height: var(--wk-card-height);
-    border-radius: var(--wk-card-radius);
+    width: var(--wk-card-w, 90px);
+    height: var(--wk-card-h, 117px);
+    border-radius: 6px;
     overflow: hidden;
     cursor: grab;
     flex-shrink: 0;
