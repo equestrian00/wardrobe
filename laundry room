@@ -17,9 +17,18 @@ const CONFIG = {
         subcategory: "clothingsubcategory",
         notes:       "notes",
     },
-    // The three groups and which statuses they contain, in column order.
-    // Rename display labels freely — only the `status` values matter
-    // (they must match what's stored in your frontmatter, case-insensitive).
+    // Card aspect ratio (height / width)
+    cardAspect: 1.3,
+    // Maximum rows of cards per column before expanding horizontally
+    maxRows: 3,
+    // Minimum card width in px — columns won't shrink cards below this
+    minCardWidth: 70,
+    // Gap between cards (px) — keep in sync with --wk-card-gap in CSS
+    cardGap: 8,
+    // Horizontal gap between columns (px) — keep in sync with --wk-group-columns-gap
+    colGap: 12,
+    // Padding inside each column body on each side (px)
+    colPad: 8,
     groups: [
         {
             label:    "Active",
@@ -98,18 +107,64 @@ function showToast(msg, isError = false) {
 //  📦  STATE
 // ═══════════════════════════════════════════════════════════════
 
-// Load all pages once; maintain a mutable status map for optimistic UI.
 const allPages = dv.pages(`"${CONFIG.itemsFolder}"`).array();
 
-// filePath → current status (kept in sync with writes)
 const statusMap = {};
-allPages.forEach(p => {
-    statusMap[p.file.path] = lc(fk(p, "status"));
-});
+allPages.forEach(p => { statusMap[p.file.path] = lc(fk(p, "status")); });
 
-// Group collapsed state — driven by CONFIG defaults, toggled by user
 const collapsed = {};
 CONFIG.groups.forEach(g => { collapsed[g.label] = g.collapsed; });
+
+// filePath → card DOM element (for optimistic moves)
+const cardElMap = {};
+// status → { bodyEl, colEl, countEl } (for sizer + drop + badge updates)
+const colMap = {};
+// group label → { groupEl, countEl, columnsWrap } (for collapse + sizer)
+const groupMap = {};
+
+// ═══════════════════════════════════════════════════════════════
+//  📐  COLUMN SIZER
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * For each visible group, divide the root width equally among its columns.
+ * Within each column, cards tile in rows of up to CONFIG.maxRows.
+ * Card width fills the column; height is derived from cardAspect.
+ * Sets --wk-card-w and --wk-card-h on each column element so both
+ * the grid template and the card elements stay in sync.
+ */
+function sizeColumns() {
+    const rootW = ROOT.offsetWidth || 600;
+
+    CONFIG.groups.forEach(group => {
+        if (collapsed[group.label]) return;
+        const gm      = groupMap[group.label];
+        if (!gm) return;
+
+        const numCols = group.columns.length;
+        // Total width available for cards = root minus gaps between columns
+        const totalGaps = CONFIG.colGap * (numCols - 1);
+        const colW      = (rootW - totalGaps) / numCols;
+
+        group.columns.forEach(col => {
+            const cm = colMap[col.status];
+            if (!cm) return;
+
+            const cardCount   = cm.bodyEl.children.length;
+            // How many columns of cards needed to fit all within maxRows
+            const numCardCols = Math.max(1, Math.ceil(cardCount / CONFIG.maxRows));
+            // Card width = column width minus body padding and card gaps
+            const innerW      = colW - CONFIG.colPad * 2;
+            const gapsInside  = CONFIG.cardGap * (numCardCols - 1);
+            const rawCardW    = (innerW - gapsInside) / numCardCols;
+            const cardW       = Math.max(CONFIG.minCardWidth, Math.floor(rawCardW));
+            const cardH       = Math.floor(cardW * CONFIG.cardAspect);
+
+            cm.colEl.style.setProperty("--wk-card-w", cardW + "px");
+            cm.colEl.style.setProperty("--wk-card-h", cardH + "px");
+        });
+    });
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  ✍️  WRITE STATUS
@@ -117,10 +172,7 @@ CONFIG.groups.forEach(g => { collapsed[g.label] = g.collapsed; });
 
 async function setStatus(filePath, newStatus) {
     const tfile = app.vault.getAbstractFileByPath(filePath);
-    if (!tfile) {
-        showToast("Could not find file to update.", true);
-        return false;
-    }
+    if (!tfile) { showToast("Could not find file.", true); return false; }
     try {
         await app.fileManager.processFrontMatter(tfile, fm => {
             fm[CONFIG.keys.status] = newStatus;
@@ -142,12 +194,11 @@ function buildCard(page) {
     const imgSrc = resolveImage(fk(page, "image"));
     const name   = displayName(page);
 
-    const card = make("div", "wk-card");
-    card.draggable       = true;
-    card.dataset.path    = page.file.path;
-    card.title           = name;
+    const card       = make("div", "wk-card");
+    card.draggable   = true;
+    card.dataset.path = page.file.path;
+    card.title       = name;
 
-    // Image fill
     const img = make("div", "wk-card__img");
     if (imgSrc) {
         img.style.backgroundImage = `url('${imgSrc}')`;
@@ -156,32 +207,53 @@ function buildCard(page) {
     }
     card.appendChild(img);
 
-    // ── Drag events ──
     card.addEventListener("dragstart", e => {
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", page.file.path);
-        // Slight delay so the ghost image renders before we add the class
         setTimeout(() => card.classList.add("wk-card--dragging"), 0);
     });
     card.addEventListener("dragend", () => {
         card.classList.remove("wk-card--dragging");
     });
 
+    cardElMap[page.file.path] = card;
     return card;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  🔢  COUNT BADGE UPDATES
+// ═══════════════════════════════════════════════════════════════
+
+function updateBadges(affectedStatuses) {
+    affectedStatuses.forEach(status => {
+        const cm = colMap[status];
+        if (cm) cm.countEl.textContent = String(cm.bodyEl.children.length);
+    });
+    // Update group totals
+    CONFIG.groups.forEach(group => {
+        const gm = groupMap[group.label];
+        if (!gm) return;
+        let total = 0;
+        group.columns.forEach(col => {
+            const cm = colMap[col.status];
+            if (cm) total += cm.bodyEl.children.length;
+        });
+        gm.countEl.textContent = String(total);
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════
 //  🏗  BUILD BOARD
 // ═══════════════════════════════════════════════════════════════
 
-// Map statusValue → column DOM element (for optimistic card moves)
-const columnBodyMap = {};
-
 function buildBoard() {
     ROOT.innerHTML = "";
+    Object.keys(cardElMap).forEach(k => delete cardElMap[k]);
+    Object.keys(colMap).forEach(k => delete colMap[k]);
+    Object.keys(groupMap).forEach(k => delete groupMap[k]);
 
     // ── Header ──────────────────────────────────────────────────
-    const header = make("div", "wk-header");
+    const header   = make("div", "wk-header");
     const wordmark = make("span", "wk-header__wordmark");
     wordmark.innerHTML = `<span class="wk-header__icon">✦</span> Laundry Room`;
     header.appendChild(wordmark);
@@ -189,83 +261,67 @@ function buildBoard() {
 
     // ── Groups ──────────────────────────────────────────────────
     CONFIG.groups.forEach(group => {
-        const groupEl   = make("div", "wk-group");
-        const groupHead = make("div", "wk-group__header");
-
-        // Chevron
-        const chevron = make("span", "wk-group__chevron");
+        const groupEl      = make("div", "wk-group");
+        const groupHead    = make("div", "wk-group__header");
+        const chevron      = make("span", "wk-group__chevron");
         chevron.textContent = "›";
-        groupHead.appendChild(chevron);
+        chevron.style.transform = collapsed[group.label] ? "rotate(0deg)" : "rotate(90deg)";
 
-        // Label
-        const labelEl = make("span", "wk-group__label");
+        const labelEl  = make("span", "wk-group__label");
         labelEl.textContent = group.label;
-        groupHead.appendChild(labelEl);
 
-        // Count badge (total items across all columns in this group)
-        const allStatuses = group.columns.map(c => c.status);
-        const groupCount  = allPages.filter(
-            p => allStatuses.includes(statusMap[p.file.path])
-        ).length;
         const countBadge = make("span", "wk-group__count");
-        countBadge.textContent = String(groupCount);
+        const allStatuses = group.columns.map(c => c.status);
+        countBadge.textContent = String(
+            allPages.filter(p => allStatuses.includes(statusMap[p.file.path])).length
+        );
+
+        groupHead.appendChild(chevron);
+        groupHead.appendChild(labelEl);
         groupHead.appendChild(countBadge);
 
-        // Toggle collapse on click
         const columnsWrap = make("div", "wk-group__columns");
-        if (collapsed[group.label]) {
-            groupEl.classList.add("wk-group--collapsed");
-            chevron.style.transform = "rotate(0deg)";
-        } else {
-            chevron.style.transform = "rotate(90deg)";
-        }
+        if (collapsed[group.label]) groupEl.classList.add("wk-group--collapsed");
 
         groupHead.addEventListener("click", () => {
             collapsed[group.label] = !collapsed[group.label];
             groupEl.classList.toggle("wk-group--collapsed", collapsed[group.label]);
-            chevron.style.transform = collapsed[group.label]
-                ? "rotate(0deg)" : "rotate(90deg)";
+            chevron.style.transform = collapsed[group.label] ? "rotate(0deg)" : "rotate(90deg)";
+            // Recalculate sizes when a group is expanded
+            if (!collapsed[group.label]) sizeColumns();
         });
 
         groupEl.appendChild(groupHead);
 
         // ── Columns ─────────────────────────────────────────────
         group.columns.forEach(col => {
-            const colEl   = make("div", "wk-col");
-            const colHead = make("div", "wk-col__header");
-
+            const colEl    = make("div", "wk-col");
+            const colHead  = make("div", "wk-col__header");
             const colLabel = make("span", "wk-col__label");
             colLabel.textContent = col.label;
-            colHead.appendChild(colLabel);
-
             const colCount = make("span", "wk-col__count");
-            const colItems = allPages.filter(
-                p => statusMap[p.file.path] === col.status
-            );
+            const colItems = allPages.filter(p => statusMap[p.file.path] === col.status);
             colCount.textContent = String(colItems.length);
+            colHead.appendChild(colLabel);
             colHead.appendChild(colCount);
-
             colEl.appendChild(colHead);
 
-            // Cards body
             const body = make("div", "wk-col__body");
             colItems.forEach(p => body.appendChild(buildCard(p)));
             colEl.appendChild(body);
 
-            // Store reference for optimistic moves
-            columnBodyMap[col.status] = body;
+            // Store references
+            colMap[col.status] = { bodyEl: body, colEl, countEl: colCount };
 
-            // ── Drop target ──
+            // ── Drop events ──
             colEl.addEventListener("dragover", e => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = "move";
                 colEl.classList.add("wk-col--over");
             });
             colEl.addEventListener("dragleave", e => {
-                // Only remove if leaving the column entirely
-                if (!colEl.contains(e.relatedTarget)) {
+                if (!colEl.contains(e.relatedTarget))
                     colEl.classList.remove("wk-col--over");
-                }
             });
             colEl.addEventListener("drop", async e => {
                 e.preventDefault();
@@ -275,25 +331,19 @@ function buildBoard() {
                 const prevStatus = statusMap[filePath];
                 if (!filePath || prevStatus === col.status) return;
 
-                // ── Optimistic UI: move the card DOM immediately ──
-                const card = ROOT.querySelector(`[data-path="${CSS.escape(filePath)}"]`);
-                if (card) {
-                    const targetBody = columnBodyMap[col.status];
-                    if (targetBody) targetBody.appendChild(card);
-                }
+                // Optimistic move
+                const card = cardElMap[filePath];
+                if (card) body.appendChild(card);
+                updateBadges([prevStatus, col.status]);
+                sizeColumns();
 
-                // Update column count badges
-                updateCountBadge(prevStatus);
-                updateCountBadge(col.status);
-
-                // ── Write to frontmatter ──
                 const ok = await setStatus(filePath, col.status);
                 if (!ok) {
-                    // Revert card on failure
-                    const revertBody = columnBodyMap[prevStatus];
+                    // Revert
+                    const revertBody = colMap[prevStatus]?.bodyEl;
                     if (card && revertBody) revertBody.appendChild(card);
-                    updateCountBadge(prevStatus);
-                    updateCountBadge(col.status);
+                    updateBadges([prevStatus, col.status]);
+                    sizeColumns();
                 }
             });
 
@@ -302,41 +352,12 @@ function buildBoard() {
 
         groupEl.appendChild(columnsWrap);
         ROOT.appendChild(groupEl);
-    });
-}
 
-// Update a column's count badge after a card move
-function updateCountBadge(status) {
-    // Find the count element for this status column
-    const colHead = ROOT.querySelector(`.wk-col__header .wk-col__label`);
-    // Walk all column headers to find the matching one
-    ROOT.querySelectorAll(".wk-col").forEach(colEl => {
-        const label = colEl.querySelector(".wk-col__label");
-        const badge = colEl.querySelector(".wk-col__count");
-        const body  = colEl.querySelector(".wk-col__body");
-        if (label && badge && body) {
-            // Match by column label → find config entry
-            const colLabel = label.textContent.trim();
-            const colCfg   = CONFIG.groups.flatMap(g => g.columns)
-                                   .find(c => c.label === colLabel);
-            if (colCfg && colCfg.status === status) {
-                badge.textContent = String(body.children.length);
-            }
-        }
-    });
-    // Also update group count badges
-    ROOT.querySelectorAll(".wk-group").forEach((groupEl, gi) => {
-        const group   = CONFIG.groups[gi];
-        if (!group) return;
-        const badge   = groupEl.querySelector(".wk-group__count");
-        if (!badge) return;
-        const statuses = group.columns.map(c => c.status);
-        let total = 0;
-        statuses.forEach(s => {
-            const body = columnBodyMap[s];
-            if (body) total += body.children.length;
-        });
-        badge.textContent = String(total);
+        groupMap[group.label] = {
+            groupEl,
+            countEl:     countBadge,
+            columnsWrap,
+        };
     });
 }
 
@@ -348,4 +369,16 @@ const ROOT = dv.container;
 ROOT.className = "wk-root";
 
 buildBoard();
+
+// Size immediately after paint so offsetWidth is available
+requestAnimationFrame(() => {
+    sizeColumns();
+
+    // Re-size whenever the container changes width
+    const ro = new ResizeObserver(() => sizeColumns());
+    ro.observe(ROOT);
+
+    // Clean up observer when the DataviewJS block is removed
+    dv.container.addEventListener("unload", () => ro.disconnect(), { once: true });
+});
 ```
