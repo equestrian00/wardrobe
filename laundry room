@@ -1,0 +1,351 @@
+
+```dataviewjs
+// ╔══════════════════════════════════════════════════════════════╗
+//  👕  WARDROBE KANBAN  —  DataviewJS
+// ╚══════════════════════════════════════════════════════════════╝
+
+// ═══════════════════════════════════════════════════════════════
+//  ⚙️  CONFIGURATION
+// ═══════════════════════════════════════════════════════════════
+
+const CONFIG = {
+    itemsFolder: "Items",
+    keys: {
+        status:      "clothingstatus",
+        image:       "image",
+        brand:       "brand",
+        subcategory: "clothingsubcategory",
+        notes:       "notes",
+    },
+    // The three groups and which statuses they contain, in column order.
+    // Rename display labels freely — only the `status` values matter
+    // (they must match what's stored in your frontmatter, case-insensitive).
+    groups: [
+        {
+            label:    "Active",
+            collapsed: false,
+            columns: [
+                { status: "clean",   label: "Clean"   },
+                { status: "hamper",  label: "Hamper"  },
+                { status: "laundry", label: "Laundry" },
+            ],
+        },
+        {
+            label:    "Sidelined",
+            collapsed: true,
+            columns: [
+                { status: "donate",  label: "Donate"  },
+                { status: "replace", label: "Replace" },
+                { status: "repair",  label: "Repair"  },
+            ],
+        },
+        {
+            label:    "Other",
+            collapsed: true,
+            columns: [
+                { status: "archive",  label: "Archive"  },
+                { status: "wishlist", label: "Wishlist" },
+            ],
+        },
+    ],
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  🛠  UTILITIES
+// ═══════════════════════════════════════════════════════════════
+
+function fk(p, alias) { return p[CONFIG.keys[alias]]; }
+function lc(v)        { return String(v || "").toLowerCase().trim(); }
+
+function resolveImage(imageProp) {
+    if (!imageProp) return null;
+    const s  = String(imageProp);
+    const wm = s.match(/!?\[\[(.+?)(?:\|[^\]]+)?\]\]/);
+    if (wm) {
+        const name = wm[1];
+        const f = app.vault.getFiles().find(
+            fi => fi.name === name || fi.path === name ||
+                  fi.path.endsWith("/" + name)
+        );
+        return f ? app.vault.getResourcePath(f) : null;
+    }
+    if (/^https?:\/\//.test(s)) return s;
+    const f2 = app.vault.getAbstractFileByPath(s);
+    return f2 ? app.vault.getResourcePath(f2) : null;
+}
+
+function displayName(p) {
+    return [fk(p, "brand"), fk(p, "subcategory")]
+        .filter(Boolean).map(s => String(s).trim()).join(" ")
+        || p.file.name.replace(/\.md$/, "");
+}
+
+function make(tag, cls = "") {
+    const el = document.createElement(tag);
+    if (cls) el.className = cls;
+    return el;
+}
+
+function showToast(msg, isError = false) {
+    const t = make("div", "wk-toast" + (isError ? " wk-toast--error" : ""));
+    t.textContent = msg;
+    ROOT.appendChild(t);
+    setTimeout(() => t.classList.add("wk-toast--out"), 2200);
+    setTimeout(() => t.remove(), 2600);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  📦  STATE
+// ═══════════════════════════════════════════════════════════════
+
+// Load all pages once; maintain a mutable status map for optimistic UI.
+const allPages = dv.pages(`"${CONFIG.itemsFolder}"`).array();
+
+// filePath → current status (kept in sync with writes)
+const statusMap = {};
+allPages.forEach(p => {
+    statusMap[p.file.path] = lc(fk(p, "status"));
+});
+
+// Group collapsed state — driven by CONFIG defaults, toggled by user
+const collapsed = {};
+CONFIG.groups.forEach(g => { collapsed[g.label] = g.collapsed; });
+
+// ═══════════════════════════════════════════════════════════════
+//  ✍️  WRITE STATUS
+// ═══════════════════════════════════════════════════════════════
+
+async function setStatus(filePath, newStatus) {
+    const tfile = app.vault.getAbstractFileByPath(filePath);
+    if (!tfile) {
+        showToast("Could not find file to update.", true);
+        return false;
+    }
+    try {
+        await app.fileManager.processFrontMatter(tfile, fm => {
+            fm[CONFIG.keys.status] = newStatus;
+        });
+        statusMap[filePath] = lc(newStatus);
+        return true;
+    } catch (e) {
+        showToast(`Could not update: ${e.message}`, true);
+        console.error("[Wardrobe Kanban] setStatus error:", e);
+        return false;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  🎨  BUILD CARD
+// ═══════════════════════════════════════════════════════════════
+
+function buildCard(page) {
+    const imgSrc = resolveImage(fk(page, "image"));
+    const name   = displayName(page);
+
+    const card = make("div", "wk-card");
+    card.draggable       = true;
+    card.dataset.path    = page.file.path;
+    card.title           = name;
+
+    // Image fill
+    const img = make("div", "wk-card__img");
+    if (imgSrc) {
+        img.style.backgroundImage = `url('${imgSrc}')`;
+    } else {
+        img.innerHTML = `<span class="wk-card__no-img">✦</span>`;
+    }
+    card.appendChild(img);
+
+    // ── Drag events ──
+    card.addEventListener("dragstart", e => {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", page.file.path);
+        // Slight delay so the ghost image renders before we add the class
+        setTimeout(() => card.classList.add("wk-card--dragging"), 0);
+    });
+    card.addEventListener("dragend", () => {
+        card.classList.remove("wk-card--dragging");
+    });
+
+    return card;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  🏗  BUILD BOARD
+// ═══════════════════════════════════════════════════════════════
+
+// Map statusValue → column DOM element (for optimistic card moves)
+const columnBodyMap = {};
+
+function buildBoard() {
+    ROOT.innerHTML = "";
+
+    // ── Header ──────────────────────────────────────────────────
+    const header = make("div", "wk-header");
+    const wordmark = make("span", "wk-header__wordmark");
+    wordmark.innerHTML = `<span class="wk-header__icon">✦</span> Laundry Room`;
+    header.appendChild(wordmark);
+    ROOT.appendChild(header);
+
+    // ── Groups ──────────────────────────────────────────────────
+    CONFIG.groups.forEach(group => {
+        const groupEl   = make("div", "wk-group");
+        const groupHead = make("div", "wk-group__header");
+
+        // Chevron
+        const chevron = make("span", "wk-group__chevron");
+        chevron.textContent = "›";
+        groupHead.appendChild(chevron);
+
+        // Label
+        const labelEl = make("span", "wk-group__label");
+        labelEl.textContent = group.label;
+        groupHead.appendChild(labelEl);
+
+        // Count badge (total items across all columns in this group)
+        const allStatuses = group.columns.map(c => c.status);
+        const groupCount  = allPages.filter(
+            p => allStatuses.includes(statusMap[p.file.path])
+        ).length;
+        const countBadge = make("span", "wk-group__count");
+        countBadge.textContent = String(groupCount);
+        groupHead.appendChild(countBadge);
+
+        // Toggle collapse on click
+        const columnsWrap = make("div", "wk-group__columns");
+        if (collapsed[group.label]) {
+            groupEl.classList.add("wk-group--collapsed");
+            chevron.style.transform = "rotate(0deg)";
+        } else {
+            chevron.style.transform = "rotate(90deg)";
+        }
+
+        groupHead.addEventListener("click", () => {
+            collapsed[group.label] = !collapsed[group.label];
+            groupEl.classList.toggle("wk-group--collapsed", collapsed[group.label]);
+            chevron.style.transform = collapsed[group.label]
+                ? "rotate(0deg)" : "rotate(90deg)";
+        });
+
+        groupEl.appendChild(groupHead);
+
+        // ── Columns ─────────────────────────────────────────────
+        group.columns.forEach(col => {
+            const colEl   = make("div", "wk-col");
+            const colHead = make("div", "wk-col__header");
+
+            const colLabel = make("span", "wk-col__label");
+            colLabel.textContent = col.label;
+            colHead.appendChild(colLabel);
+
+            const colCount = make("span", "wk-col__count");
+            const colItems = allPages.filter(
+                p => statusMap[p.file.path] === col.status
+            );
+            colCount.textContent = String(colItems.length);
+            colHead.appendChild(colCount);
+
+            colEl.appendChild(colHead);
+
+            // Cards body
+            const body = make("div", "wk-col__body");
+            colItems.forEach(p => body.appendChild(buildCard(p)));
+            colEl.appendChild(body);
+
+            // Store reference for optimistic moves
+            columnBodyMap[col.status] = body;
+
+            // ── Drop target ──
+            colEl.addEventListener("dragover", e => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                colEl.classList.add("wk-col--over");
+            });
+            colEl.addEventListener("dragleave", e => {
+                // Only remove if leaving the column entirely
+                if (!colEl.contains(e.relatedTarget)) {
+                    colEl.classList.remove("wk-col--over");
+                }
+            });
+            colEl.addEventListener("drop", async e => {
+                e.preventDefault();
+                colEl.classList.remove("wk-col--over");
+
+                const filePath   = e.dataTransfer.getData("text/plain");
+                const prevStatus = statusMap[filePath];
+                if (!filePath || prevStatus === col.status) return;
+
+                // ── Optimistic UI: move the card DOM immediately ──
+                const card = ROOT.querySelector(`[data-path="${CSS.escape(filePath)}"]`);
+                if (card) {
+                    const targetBody = columnBodyMap[col.status];
+                    if (targetBody) targetBody.appendChild(card);
+                }
+
+                // Update column count badges
+                updateCountBadge(prevStatus);
+                updateCountBadge(col.status);
+
+                // ── Write to frontmatter ──
+                const ok = await setStatus(filePath, col.status);
+                if (!ok) {
+                    // Revert card on failure
+                    const revertBody = columnBodyMap[prevStatus];
+                    if (card && revertBody) revertBody.appendChild(card);
+                    updateCountBadge(prevStatus);
+                    updateCountBadge(col.status);
+                }
+            });
+
+            columnsWrap.appendChild(colEl);
+        });
+
+        groupEl.appendChild(columnsWrap);
+        ROOT.appendChild(groupEl);
+    });
+}
+
+// Update a column's count badge after a card move
+function updateCountBadge(status) {
+    // Find the count element for this status column
+    const colHead = ROOT.querySelector(`.wk-col__header .wk-col__label`);
+    // Walk all column headers to find the matching one
+    ROOT.querySelectorAll(".wk-col").forEach(colEl => {
+        const label = colEl.querySelector(".wk-col__label");
+        const badge = colEl.querySelector(".wk-col__count");
+        const body  = colEl.querySelector(".wk-col__body");
+        if (label && badge && body) {
+            // Match by column label → find config entry
+            const colLabel = label.textContent.trim();
+            const colCfg   = CONFIG.groups.flatMap(g => g.columns)
+                                   .find(c => c.label === colLabel);
+            if (colCfg && colCfg.status === status) {
+                badge.textContent = String(body.children.length);
+            }
+        }
+    });
+    // Also update group count badges
+    ROOT.querySelectorAll(".wk-group").forEach((groupEl, gi) => {
+        const group   = CONFIG.groups[gi];
+        if (!group) return;
+        const badge   = groupEl.querySelector(".wk-group__count");
+        if (!badge) return;
+        const statuses = group.columns.map(c => c.status);
+        let total = 0;
+        statuses.forEach(s => {
+            const body = columnBodyMap[s];
+            if (body) total += body.children.length;
+        });
+        badge.textContent = String(total);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  🚀  BOOTSTRAP
+// ═══════════════════════════════════════════════════════════════
+
+const ROOT = dv.container;
+ROOT.className = "wk-root";
+
+buildBoard();
+```
