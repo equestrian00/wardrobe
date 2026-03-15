@@ -1,5 +1,3 @@
-# Wardrobe Stylist
-
 ```dataviewjs
 // ╔══════════════════════════════════════════════════════════════╗
 //  🌸  WARDROBE STYLIST  —  DataviewJS
@@ -173,38 +171,51 @@ const CONFIG = {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Try to read formulas from CONFIG.formulasNote.
- * Falls back to OUTFIT_FORMULAS if the note is missing,
- * the property is absent, or any entry fails validation.
+ * Read formulas from a JSON code block in CONFIG.formulasNote.
+ * The note should contain a ```json block whose content is an object
+ * shaped like:
+ *   { "Standard": { "slots": ["tops","bottoms","footwear"] },
+ *     "Warm Layers": { "slots": [...], "seasons": ["Fall","Winter"] } }
+ *
+ * Falls back to CONFIG.OUTFIT_FORMULAS on any error.
  */
-function loadFormulas() {
+async function loadFormulas() {
     if (!CONFIG.formulasNote) return CONFIG.OUTFIT_FORMULAS;
 
-    const page = dv.page(CONFIG.formulasNote);
-    if (!page || !page.formulas || typeof page.formulas !== "object") {
+    try {
+        const tf = app.vault.getAbstractFileByPath(CONFIG.formulasNote + ".md")
+               || app.vault.getAbstractFileByPath(CONFIG.formulasNote);
+        if (!tf) return CONFIG.OUTFIT_FORMULAS;
+
+        const raw  = await app.vault.read(tf);
+        const match = raw.match(/```json\s*([\s\S]*?)```/);
+        if (!match) return CONFIG.OUTFIT_FORMULAS;
+
+        const parsed = JSON.parse(match[1]);
+        if (typeof parsed !== "object" || Array.isArray(parsed))
+            return CONFIG.OUTFIT_FORMULAS;
+
+        const loaded = {};
+        let valid = 0;
+        for (const [name, def] of Object.entries(parsed)) {
+            if (!def || !Array.isArray(def.slots) || !def.slots.length) continue;
+            loaded[name] = {
+                slots: def.slots.map(s => String(s).trim().toLowerCase()),
+                ...(Array.isArray(def.seasons) && def.seasons.length
+                    ? { seasons: def.seasons.map(s => String(s).trim()) }
+                    : {}),
+            };
+            valid++;
+        }
+        return valid ? loaded : CONFIG.OUTFIT_FORMULAS;
+    } catch (e) {
+        console.warn("[Wardrobe Stylist] Could not load formulas note:", e);
         return CONFIG.OUTFIT_FORMULAS;
     }
-
-    const loaded = {};
-    let valid = 0;
-
-    for (const [name, def] of Object.entries(page.formulas)) {
-        if (!def || !Array.isArray(def.slots) || !def.slots.length) continue;
-        loaded[name] = {
-            slots: def.slots.map(s => String(s).trim().toLowerCase()),
-            ...(Array.isArray(def.seasons) && def.seasons.length
-                ? { seasons: def.seasons.map(s => String(s).trim()) }
-                : {}),
-        };
-        valid++;
-    }
-
-    if (!valid) return CONFIG.OUTFIT_FORMULAS;
-    return loaded;
 }
 
-// Resolved at startup — all engine code reads from this, not CONFIG directly.
-let OUTFIT_FORMULAS = loadFormulas();
+// Populated async in bootstrap before first render().
+let OUTFIT_FORMULAS = CONFIG.OUTFIT_FORMULAS;
 
 // ═══════════════════════════════════════════════════════════════
 //  🛠  UTILITY HELPERS
@@ -1239,7 +1250,8 @@ if (!document.getElementById(STYLE_ID)) {
 const ROOT = dv.container;
 ROOT.className = "ws-root";
 
-// Ensure the default formula key exists in whatever was loaded
+// Load formulas async, then render
+OUTFIT_FORMULAS = await loadFormulas();
 if (!OUTFIT_FORMULAS[state.filterFormula]) {
     state.filterFormula = Object.keys(OUTFIT_FORMULAS)[0] || "Standard";
 }
