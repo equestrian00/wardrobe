@@ -1,3 +1,5 @@
+# Wardrobe Stylist
+
 ```dataviewjs
 // ╔══════════════════════════════════════════════════════════════╗
 //  🌸  WARDROBE STYLIST  —  DataviewJS
@@ -54,9 +56,6 @@ const CONFIG = {
     },
 
     // ── Color Theory ─────────────────────────────────────────────
-    // List which colors pair WELL with each key color.
-    // Rule: if you don't want "Navy on Navy", simply don't add
-    // "Navy" inside its own array. The engine respects omissions.
     COLOR_THEORY: {
         "Black":      ["White", "Grey", "Cream", "Camel", "Red", "Pink",
                        "Cobalt", "Gold", "Silver", "Blush", "Lavender"],
@@ -131,7 +130,14 @@ const CONFIG = {
         "jumpsuit":     { footwear: ["heels", "sandals", "sneakers"] },
     },
 
-    // ── Outfit Formulas ──────────────────────────────────────────
+    // ── Formulas Note ────────────────────────────────────────────
+    // Name of the note (no .md) that defines your outfit formulas.
+    // If the note is found its formulas override the fallbacks below.
+    // Set to null to always use the fallbacks defined here.
+    formulasNote: "Stylist Formulas",
+
+    // ── Outfit Formulas (fallback) ───────────────────────────────
+    // Used when formulasNote is null or the note can't be read.
     OUTFIT_FORMULAS: {
         "Standard":       { slots: ["tops", "bottoms", "footwear"] },
         "One Piece":      { slots: ["full body", "footwear"] },
@@ -163,6 +169,44 @@ const CONFIG = {
 };
 
 // ═══════════════════════════════════════════════════════════════
+//  📋  FORMULA LOADER
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Try to read formulas from CONFIG.formulasNote.
+ * Falls back to OUTFIT_FORMULAS if the note is missing,
+ * the property is absent, or any entry fails validation.
+ */
+function loadFormulas() {
+    if (!CONFIG.formulasNote) return CONFIG.OUTFIT_FORMULAS;
+
+    const page = dv.page(CONFIG.formulasNote);
+    if (!page || !page.formulas || typeof page.formulas !== "object") {
+        return CONFIG.OUTFIT_FORMULAS;
+    }
+
+    const loaded = {};
+    let valid = 0;
+
+    for (const [name, def] of Object.entries(page.formulas)) {
+        if (!def || !Array.isArray(def.slots) || !def.slots.length) continue;
+        loaded[name] = {
+            slots: def.slots.map(s => String(s).trim().toLowerCase()),
+            ...(Array.isArray(def.seasons) && def.seasons.length
+                ? { seasons: def.seasons.map(s => String(s).trim()) }
+                : {}),
+        };
+        valid++;
+    }
+
+    if (!valid) return CONFIG.OUTFIT_FORMULAS;
+    return loaded;
+}
+
+// Resolved at startup — all engine code reads from this, not CONFIG directly.
+let OUTFIT_FORMULAS = loadFormulas();
+
+// ═══════════════════════════════════════════════════════════════
 //  🛠  UTILITY HELPERS
 // ═══════════════════════════════════════════════════════════════
 
@@ -175,9 +219,8 @@ function asList(val) {
 function lc(v) { return String(v || "").toLowerCase().trim(); }
 
 /**
- * Read a frontmatter property from a page using a CONFIG.keys alias.
- * fk(page, "category")  →  page[CONFIG.keys.category]
- * This is the ONLY place raw frontmatter names appear in the engine.
+ * Read a frontmatter property via a CONFIG.keys alias.
+ * This is the only place raw frontmatter names appear in the engine.
  */
 function fk(page, alias) { return page[CONFIG.keys[alias]]; }
 
@@ -185,11 +228,6 @@ function toTitleCase(w) {
     return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
 }
 
-/**
- * Flatten a frontmatter value (string or array) into a clean
- * title-cased phrase with no commas.
- * "crew neck,pullover,long sleeve" → "Crew Neck Pullover Long Sleeve"
- */
 function cleanStyleField(val) {
     if (!val) return "";
     const parts = Array.isArray(val) ? val : [val];
@@ -201,7 +239,6 @@ function cleanStyleField(val) {
         .join(" ");
 }
 
-/** Display name: "Brand Style Subcategory" */
 function displayName(p) {
     const brand  = fk(p, "brand") ? String(fk(p, "brand")).trim() : "";
     const style  = cleanStyleField(fk(p, "style"));
@@ -358,7 +395,7 @@ const state = {
 function updateSuggestions() {
     if (!state.heroPage) { state.slots = {}; return; }
 
-    const formula  = CONFIG.OUTFIT_FORMULAS[state.filterFormula];
+    const formula  = OUTFIT_FORMULAS[state.filterFormula];
     const heroCat  = lc(fk(state.heroPage, "category"));
     const heroSub  = lc(fk(state.heroPage, "subcategory") || "");
 
@@ -485,7 +522,7 @@ function pickRandomHero() {
 async function logOutfit() {
     if (!state.heroPage) return;
 
-    const formula     = CONFIG.OUTFIT_FORMULAS[state.filterFormula];
+    const formula     = OUTFIT_FORMULAS[state.filterFormula];
     const heroCat     = lc(fk(state.heroPage, "category"));
     const skipCats    = heroCat === "full body" ? ["tops", "bottoms", heroCat] : [heroCat];
     const activeSlots = formula.slots.filter(s => !skipCats.includes(s));
@@ -555,6 +592,7 @@ function buildHeader() {
 
     const right = make("div", "ws-header__right");
 
+    // Wearable toggle
     const wLabel = make("label", "ws-wearable-label");
     wLabel.title = "When on, only Clean items appear";
 
@@ -581,6 +619,7 @@ function buildHeader() {
     wLabel.appendChild(wText);
     right.appendChild(wLabel);
 
+    // Debug toggle
     const dLabel = make("label", "ws-debug-label");
     dLabel.title = "Show scoring breakdown on suggestion cards";
     const dCb = document.createElement("input");
@@ -618,13 +657,14 @@ function buildFilters() {
         }));
     }
 
+    // Formula selector
     const formulaGroup = make("div", "ws-filter-group");
     const formulaLabel = make("span", "ws-filter-label");
     formulaLabel.textContent = "Formula";
     formulaGroup.appendChild(formulaLabel);
 
     const sel = make("select", "ws-select");
-    Object.keys(CONFIG.OUTFIT_FORMULAS).forEach(name => {
+    Object.keys(OUTFIT_FORMULAS).forEach(name => {
         const opt = document.createElement("option");
         opt.value       = name;
         opt.textContent = name;
@@ -638,11 +678,21 @@ function buildFilters() {
     formulaGroup.appendChild(sel);
     el.appendChild(formulaGroup);
 
-    const rndBtn = makeBtn("Random", "ws-btn ws-btn--random", () => {
+    // ── Action buttons — sit together at the end of the filter bar ──
+    const actionGroup = make("div", "ws-filter-group ws-action-group");
+    const actionLabel = make("span", "ws-filter-label");
+    actionLabel.textContent = "Actions";
+    actionGroup.appendChild(actionLabel);
+
+    const actions = make("div", "ws-actions");
+    actions.appendChild(makeBtn("Random", "ws-btn ws-btn--action", () => {
         pickRandomHero();
         render();
-    });
-    el.appendChild(rndBtn);
+    }));
+    actions.appendChild(make("span", "ws-action-divider")); // thin separator
+    actions.appendChild(makeBtn("Log Outfit", "ws-btn ws-btn--action", () => logOutfit()));
+    actionGroup.appendChild(actions);
+    el.appendChild(actionGroup);
 
     return el;
 }
@@ -683,6 +733,7 @@ function refreshCanvas() {
     if (!$canvas) return;
     $canvas.innerHTML = "";
 
+    // ── Hero panel ──
     const heroPanel = make("div", "ws-panel ws-panel--hero");
 
     if (state.heroPage) {
@@ -697,6 +748,7 @@ function refreshCanvas() {
     heroPanel.appendChild(buildHeroSelector());
     $canvas.appendChild(heroPanel);
 
+    // ── Suggestion panel ──
     const suggPanel = make("div", "ws-panel ws-panel--suggestions");
 
     if (!state.heroPage) {
@@ -704,7 +756,7 @@ function refreshCanvas() {
         hint.textContent = "Your outfit will appear here once you pick a hero item.";
         suggPanel.appendChild(hint);
     } else {
-        const formula     = CONFIG.OUTFIT_FORMULAS[state.filterFormula];
+        const formula     = OUTFIT_FORMULAS[state.filterFormula];
         const heroCat     = lc(fk(state.heroPage, "category"));
         const skipCats    = heroCat === "full body" ? ["tops", "bottoms", heroCat] : [heroCat];
         const activeSlots = formula.slots.filter(s => !skipCats.includes(s));
@@ -765,8 +817,6 @@ function refreshCanvas() {
                     suggPanel.appendChild(slotWrap);
                 });
         }   // end else (activeSlots exist)
-
-        suggPanel.appendChild(makeBtn("Log Outfit", "ws-btn ws-btn--log", () => logOutfit()));
     }
 
     $canvas.appendChild(suggPanel);
@@ -829,7 +879,7 @@ function buildHeroSelector() {
 function buildCard(page, score, reasons, isHero, onShuffle, isRequired = false) {
     const imgSrc = resolveImage(fk(page, "image"));
     const name   = displayName(page);
-    const size   = fk(page, "size")         ? `Size ${fk(page, "size")}` : "";
+    const size   = fk(page, "size") ? String(fk(page, "size")) : "";
     const colors = asList(fk(page, "color")).join(", ");
     const tags   = asList(fk(page, "styling_tags")).join("  ·  ");
 
@@ -1010,21 +1060,53 @@ const CSS = `
     background: var(--background-primary); color: var(--text-normal);
     cursor: pointer; outline: none; min-width: 130px;
 }
-.ws-btn--random {
-    font-family: -apple-system, sans-serif; font-size: 11px; font-weight: 500;
-    letter-spacing: 0.08em; text-transform: uppercase;
-    padding: 5px 14px; border-radius: 4px;
-    border: 1px solid var(--background-modifier-border);
-    background: transparent; color: var(--text-muted);
-    cursor: pointer; transition: all 0.12s; align-self: flex-end;
+/* ── Action buttons ───────────────────────────────── */
+.ws-action-group { margin-left: auto; }
+.ws-actions {
+    display: flex;
+    align-items: center;
+    gap: 0;
 }
-.ws-btn--random:hover { border-color: var(--text-muted); color: var(--text-normal); }
+.ws-btn--action {
+    font-family: -apple-system, sans-serif;
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    background: none;
+    border: none;
+    padding: 4px 10px;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.15s;
+    white-space: nowrap;
+}
+.ws-btn--action::after {
+    content: "";
+    position: absolute;
+    bottom: 0; left: 10px; right: 10px;
+    height: 1px;
+    background: #8b6f5e;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.2s ease;
+}
+.ws-btn--action:hover { color: #8b6f5e; }
+.ws-btn--action:hover::after { transform: scaleX(1); }
+.ws-action-divider {
+    display: inline-block;
+    width: 1px;
+    height: 10px;
+    background: var(--background-modifier-border);
+    flex-shrink: 0;
+}
 /* ── Canvas ───────────────────────────────────────── */
 .ws-canvas {
     display: grid;
     grid-template-columns: 220px 1fr;
-    grid-template-rows: auto auto;
-    column-gap: 28px; row-gap: 14px; align-items: start;
+    column-gap: 28px;
+    align-items: start;
 }
 .ws-panel--hero { display: flex; flex-direction: column; gap: 10px; }
 .ws-panel--suggestions { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
@@ -1050,8 +1132,14 @@ const CSS = `
     font-family: "Georgia", serif; font-size: 12px;
     color: var(--text-normal); line-height: 1.4; margin-bottom: 3px;
 }
-.ws-card__meta { font-family: -apple-system, sans-serif; font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
-.ws-card__tags { font-family: -apple-system, sans-serif; font-size: 10px; color: var(--text-faint); font-style: italic; }
+.ws-card__meta {
+    font-family: -apple-system, sans-serif; font-size: 10px;
+    color: var(--text-muted); margin-bottom: 2px;
+}
+.ws-card__tags {
+    font-family: -apple-system, sans-serif; font-size: 10px;
+    color: var(--text-faint); font-style: italic;
+}
 /* ── Required badge ───────────────────────────────── */
 .ws-required-badge {
     position: absolute; top: 8px; left: 8px;
@@ -1082,7 +1170,10 @@ const CSS = `
     padding: 0; transition: all 0.12s; opacity: 0;
 }
 .ws-card:hover .ws-shuffle-btn { opacity: 1; }
-.ws-shuffle-btn:hover { background: var(--interactive-accent); border-color: var(--interactive-accent); color: #fff; }
+.ws-shuffle-btn:hover {
+    background: var(--interactive-accent);
+    border-color: var(--interactive-accent); color: #fff;
+}
 /* ── Hero selector ────────────────────────────────── */
 .ws-hero-selector { width: 100%; }
 .ws-select--hero  { width: 100%; }
@@ -1105,7 +1196,9 @@ const CSS = `
     letter-spacing: 0.1em; text-transform: uppercase;
     color: var(--text-faint); align-self: flex-start;
 }
-.ws-slot-counter { font-family: -apple-system, sans-serif; font-size: 10px; color: var(--text-faint); }
+.ws-slot-counter {
+    font-family: -apple-system, sans-serif; font-size: 10px; color: var(--text-faint);
+}
 .ws-slot-empty {
     width: 152px; min-height: 80px; border-radius: 8px;
     background: var(--background-secondary);
@@ -1114,18 +1207,6 @@ const CSS = `
     font-family: -apple-system, sans-serif; font-size: 11px;
     color: var(--text-faint); font-style: italic; padding: 10px; text-align: center;
 }
-/* ── Log outfit button ────────────────────────────── */
-.ws-btn--log {
-    margin-top: 8px;
-    margin-left: auto;
-    font-family: -apple-system, sans-serif; font-size: 11px; font-weight: 500;
-    letter-spacing: 0.08em; text-transform: uppercase;
-    padding: 5px 14px; border-radius: 4px;
-    border: 1px solid var(--background-modifier-border);
-    background: transparent; color: var(--text-muted);
-    cursor: pointer; transition: all 0.12s; align-self: flex-end;
-}
-.ws-btn--log:hover { border-color: var(--text-muted); color: var(--text-normal); }
 /* ── Hint ─────────────────────────────────────────── */
 .ws-hint {
     font-family: -apple-system, sans-serif; font-size: 12px;
@@ -1157,6 +1238,11 @@ if (!document.getElementById(STYLE_ID)) {
 
 const ROOT = dv.container;
 ROOT.className = "ws-root";
+
+// Ensure the default formula key exists in whatever was loaded
+if (!OUTFIT_FORMULAS[state.filterFormula]) {
+    state.filterFormula = Object.keys(OUTFIT_FORMULAS)[0] || "Standard";
+}
 
 render();
 ```
