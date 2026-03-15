@@ -644,23 +644,43 @@ async function logOutfit() {
     const today    = new Date().toLocaleDateString("en-CA");
     const allInFit = [state.heroPage, ...outfitPages];
 
+    let updated = 0;
     try {
         for (const page of allInFit) {
+            // DataviewJS page.file is Dataview metadata, not a vault TFile.
+            // We must resolve the real TFile before calling processFrontMatter.
+            const tfile = app.vault.getAbstractFileByPath(page.file.path);
+            if (!tfile) {
+                console.warn("[Wardrobe Stylist] Could not resolve TFile for:", page.file.path);
+                continue;
+            }
+
             const others = allInFit
                 .filter(p => p.file.path !== page.file.path)
                 .map(p => `[[${p.file.name.replace(/\.md$/, "")}]]`)
                 .join(", ");
 
-            await app.fileManager.processFrontMatter(page.file, fm => {
-                fm[CONFIG.keys.wear] = (parseInt(fm[CONFIG.keys.wear]) || 0) + 1;
-                if (!fm[CONFIG.keys.outfits])
+            await app.fileManager.processFrontMatter(tfile, fm => {
+                // Increment wear count
+                const currentWear = parseInt(fm[CONFIG.keys.wear]);
+                fm[CONFIG.keys.wear] = (isNaN(currentWear) ? 0 : currentWear) + 1;
+
+                // Append outfit log entry
+                if (!fm[CONFIG.keys.outfits] || fm[CONFIG.keys.outfits] === null)
                     fm[CONFIG.keys.outfits] = [];
                 if (!Array.isArray(fm[CONFIG.keys.outfits]))
-                    fm[CONFIG.keys.outfits] = [fm[CONFIG.keys.outfits]];
+                    fm[CONFIG.keys.outfits] = [String(fm[CONFIG.keys.outfits])];
                 fm[CONFIG.keys.outfits].push(`${today}: Worn with ${others}`);
             });
+
+            updated++;
         }
-        showToast(`Outfit logged — ${allInFit.length} items updated.`);
+
+        if (updated > 0) {
+            showToast(`Outfit logged — ${updated} item${updated !== 1 ? "s" : ""} updated.`);
+        } else {
+            showToast("No items could be updated. Check the console for details.", true);
+        }
     } catch (e) {
         showToast(`Could not log outfit: ${e.message}`, true);
         console.error("[Wardrobe Stylist] logOutfit error:", e);
