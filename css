@@ -1,3 +1,7 @@
+.inline-title {
+  display: none;
+}
+
 /* ============================================================
    WARDROBE STYLIST — CSS Snippet
    Place in .obsidian/snippets/ and enable in
@@ -759,4 +763,43 @@
 /* Fading out */
 .ws-toast--out {
     opacity: 0;
+}
+
+/* ── Worn-together variable ────────────────────────────────── */
+ 
+.ws-root {
+    --ws-color-worn:        #8b6f5e;   /* indicator text + dot color  */
+    --ws-font-size-worn:    9px;       /* indicator font size         */
+}
+ 
+ 
+/* ── Worn-together indicator ───────────────────────────────── */
+ 
+/* Shown at the bottom of a suggestion card's info block
+   when this combination has been logged at least once before */
+.ws-card__worn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px solid var(--background-modifier-border);
+    font-family: var(--ws-font-ui);
+    font-size: var(--ws-font-size-worn);
+    font-style: italic;
+    letter-spacing: 0.04em;
+    color: var(--ws-color-worn);
+    opacity: 0.75;
+}
+ 
+/* Small filled dot before the text */
+.ws-card__worn::before {
+    content: "";
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--ws-color-worn);
+    flex-shrink: 0;
+    opacity: 0.7;
 }
