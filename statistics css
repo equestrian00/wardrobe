@@ -1,0 +1,527 @@
+/* ============================================================
+   WARDROBE STATISTICS — CSS Snippet
+   Place in .obsidian/snippets/ and enable in
+   Settings → Appearance → CSS Snippets
+
+   All values are custom properties on .wst-root.
+   Override any variable in your own snippet to restyle
+   without editing this file.
+   ============================================================ */
+
+
+/* ── Custom Properties ─────────────────────────────────────── */
+
+.wst-root {
+
+    /* Typography
+    --------------------------------------------------------- */
+    --wst-font-serif:           "Georgia", "Times New Roman", serif;
+    --wst-font-ui:              -apple-system, sans-serif;
+
+    --wst-font-size-base:       13px;
+    --wst-font-size-section:    10px;   /* section header label */
+    --wst-font-size-stat-value: 28px;   /* big number on stat card */
+    --wst-font-size-stat-label: 10px;   /* label under big number */
+    --wst-font-size-stat-sub:   9px;    /* sub-note under label */
+    --wst-font-size-bar-label:  11px;   /* bar row label */
+    --wst-font-size-bar-value:  10px;   /* bar row count/pct */
+    --wst-font-size-bar-sub:    9px;    /* dual bar sublabel */
+    --wst-font-size-legend:     10px;   /* donut legend */
+    --wst-font-size-table:      11px;   /* table body */
+    --wst-font-size-table-head: 9px;    /* table header */
+
+    /* Colors
+    --------------------------------------------------------- */
+    /* Primary bar fill */
+    --wst-color-bar:            #8b6f5e;
+    /* Secondary / cost bar */
+    --wst-color-bar-cost:       #b8956a;
+    /* Average bar */
+    --wst-color-bar-avg:        #c9a96e;
+    /* Avoids bar */
+    --wst-color-bar-avoid:      #c17f74;
+    /* Bar track (empty background) — warmer than default border */
+    --wst-color-bar-track:      rgba(139, 111, 94, 0.12);
+
+    /* Section header accent line */
+    --wst-color-accent:         #8b6f5e;
+
+    /* Stat card number color — warm accent instead of flat text */
+    --wst-color-stat-value:     var(--text-normal);
+    --wst-color-stat-label:     var(--text-muted);
+    --wst-color-stat-sub:       var(--text-faint);
+
+    /* Table */
+    --wst-color-table-head-bg:  rgba(139, 111, 94, 0.06);
+    --wst-color-table-border:   rgba(139, 111, 94, 0.15);
+    --wst-color-table-group:    #8b6f5e;
+    --wst-color-table-num:      var(--text-muted);
+
+    /* Status track */
+    --wst-status-track-height:  10px;
+    --wst-status-track-radius:  5px;
+
+    /* Layout
+    --------------------------------------------------------- */
+    --wst-max-width:            1140px;
+    --wst-root-padding:         2px 2px 40px;
+
+    /* Section */
+    --wst-section-gap:          28px;    /* vertical gap between sections */
+    --wst-section-body-gap:     14px;
+    --wst-section-padding:      18px 0 0;
+    --wst-section-header-mb:    12px;
+    --wst-section-title-ls:     0.12em;
+
+    /* Two-column row */
+    --wst-row-gap:              24px;
+
+    /* Summary strip */
+    --wst-strip-gap:            1px;     /* gap between stat cards */
+
+    /* Stat card */
+    --wst-stat-padding:         20px 22px;
+    --wst-stat-radius:          0px;     /* set to e.g. 8px for rounded cards */
+
+    /* Bar chart */
+    --wst-bar-height:           6px;
+    --wst-bar-radius:           3px;
+    --wst-bar-row-gap:          10px;
+    --wst-bar-label-width:      130px;
+    --wst-bar-value-width:      52px;
+    --wst-bar-sublabel-width:   30px;
+
+    /* Donut */
+    --wst-donut-size:           140px;
+    --wst-donut-hole:           60%;     /* inner hole radius as % */
+    --wst-donut-legend-gap:     6px;
+    --wst-donut-dot-size:       7px;
+
+    /* Transitions */
+    --wst-transition:           0.12s;
+}
+
+
+/* ── Root ──────────────────────────────────────────────────── */
+
+.wst-root {
+    font-family: var(--wst-font-serif);
+    font-size: var(--wst-font-size-base);
+    color: var(--text-normal);
+    max-width: var(--wst-max-width);
+    margin: 0 auto;
+    padding: var(--wst-root-padding);
+    line-height: 1.5;
+}
+
+
+/* ── Summary strip ─────────────────────────────────────────── */
+
+/* Horizontal row of top-level stat cards */
+.wst-summary-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--wst-strip-gap);
+    margin-bottom: var(--wst-section-gap);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Variant used inside a section body */
+.wst-summary-strip--sub {
+    margin-bottom: 16px;
+    border-radius: 6px;
+}
+
+
+/* ── Stat card ─────────────────────────────────────────────── */
+
+.wst-stat {
+    padding: var(--wst-stat-padding);
+    border-radius: var(--wst-stat-radius);
+    background: var(--background-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+/* The big number */
+.wst-stat__value {
+    font-family: var(--wst-font-serif);
+    font-size: var(--wst-font-size-stat-value);
+    font-weight: normal;
+    color: var(--wst-color-stat-value);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+}
+
+/* Label below the number */
+.wst-stat__label {
+    font-family: var(--wst-font-ui);
+    font-size: var(--wst-font-size-stat-label);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--wst-color-stat-label);
+}
+
+/* Optional sub-note */
+.wst-stat__sub {
+    font-family: var(--wst-font-ui);
+    font-size: var(--wst-font-size-stat-sub);
+    color: var(--wst-color-stat-sub);
+    font-style: italic;
+}
+
+
+/* ── Section ───────────────────────────────────────────────── */
+
+/* Outer wrapper */
+.wst-section {
+    margin-bottom: var(--wst-section-gap);
+}
+
+/* <details> wrapper inside the section */
+.wst-section__details {
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* <summary> acts as the clickable header */
+.wst-section__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: var(--wst-section-padding);
+    margin-bottom: 0;
+    cursor: pointer;
+    list-style: none;          /* remove default disclosure triangle */
+    user-select: none;
+    position: relative;
+}
+
+/* Remove default marker in all browsers */
+.wst-section__header::-webkit-details-marker { display: none; }
+.wst-section__header::marker               { display: none; }
+
+/* Accent left-border */
+.wst-section__header::before {
+    content: "";
+    display: block;
+    width: 3px;
+    height: 14px;
+    background: var(--wst-color-accent);
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+/* Plain (non-collapsible) header — no accent bar, no border, no cursor */
+.wst-section__header--plain {
+    cursor: default;
+    border-bottom: none;
+    margin-bottom: var(--wst-section-header-mb);
+}
+
+.wst-section__header--plain::before {
+    display: none;
+}
+
+/* Rotating chevron */
+.wst-section__chevron {
+    font-size: 14px;
+    color: var(--text-faint);
+    line-height: 1;
+    transition: transform 0.18s ease;
+    flex-shrink: 0;
+    transform: rotate(0deg);
+}
+
+.wst-section__details[open] > .wst-section__header .wst-section__chevron {
+    transform: rotate(90deg);
+}
+
+/* Section title text */
+.wst-section__title {
+    font-family: var(--wst-font-ui);
+    font-size: var(--wst-font-size-section);
+    font-weight: 700;
+    letter-spacing: var(--wst-section-title-ls);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+/* Section body — revealed when open */
+.wst-section__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--wst-section-body-gap);
+    padding-bottom: var(--wst-section-gap);
+}
+
+/* Add top margin to body when open so it doesn't crowd the summary */
+.wst-section__details[open] > .wst-section__body {
+    margin-top: var(--wst-section-header-mb);
+}
+
+
+/* ── Two-column row ────────────────────────────────────────── */
+
+/* Used to place two sections side by side */
+.wst-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--wst-row-gap);
+    margin-bottom: var(--wst-section-gap);
+}
+
+/* Each child section inside a row has no bottom margin */
+.wst-row > .wst-section {
+    margin-bottom: 0;
+}
+
+
+/* ── Bar chart ─────────────────────────────────────────────── */
+
+/* Container for all bar rows */
+.wst-bars {
+    display: flex;
+    flex-direction: column;
+    gap: var(--wst-bar-row-gap);
+}
+
+/* Single bar row: label + track + value */
+.wst-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Label on the left */
+.wst-bar-label {
+    font-family: var(--wst-font-ui);
+    font-size: var(--wst-font-size-bar-label);
+    color: var(--text-normal);
+    width: var(--wst-bar-label-width);
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Track (empty background) */
+.wst-bar-track {
+    flex: 1;
+    height: var(--wst-bar-height);
+    background: var(--wst-color-bar-track);
+    border-radius: var(--wst-bar-radius);
+    overflow: hidden;
+}
+
+/* Fill (animated width set via JS) */
+.wst-bar-fill {
+    height: 100%;
+    background: var(--wst-color-bar);
+    border-radius: var(--wst-bar-radius);
+    transition: width 0.4s ease;
+}
+
+.wst-bar-fill--cost  { background: var(--wst-color-bar-cost);  }
+.wst-bar-fill--avg   { background: var(--wst-color-bar-avg);   }
+.wst-bar-fill--avoid { background: var(--wst-color-bar-avoid); }
+
+/* Count / percentage on the right */
+.wst-bar-value {
+    font-family: var(--wst-font-ui);
+    font-size: var(--wst-font-size-bar-value);
+    color: var(--text-muted);
+    width: var(--wst-bar-value-width);
+    text-align: right;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* Size list value — wider, no fixed width, wraps if needed */
+.wst-bar-value--sizes {
+    width: auto;
+    flex: 1;
+    text-align: left;
+    color: var(--text-faint);
+    font-style: italic;
+    white-space: normal;
+    line-height: 1.6;
+}
+
+/* Wide label for brand · type rows */
+.wst-bar-label--wide {
+    width: 200px;
+}
+
+/* ── Dual bar variant (value vs cost) ── */
+
+.wst-bars--dual .wst-bar-row--dual {
+    align-items: flex-start;
+}
+
+/* Column holding the two sub-bars */
+.wst-bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Each sub-bar row within the column */
+.wst-bar-track-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* "Total" / "Avg" sublabel */
+.wst-bar-sublabel {
+    font-family: var(--wst-font-ui);
+    font-size: var(--wst-font-size-bar-sub);
+    color: var(--text-faint);
+    width: var(--wst-bar-sublabel-width);
+    flex-shrink: 0;
+    white-space: nowrap;        /* prevents "Total" wrapping */
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+
+/* ── Donut chart ───────────────────────────────────────────── */
+
+/* Outer wrapper: ring + legend side by side */
+.wst-donut-wrap {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+/* Conic-gradient ring */
+.wst-donut-ring {
+    width: var(--wst-donut-size);
+    height: var(--wst-donut-size);
+    border-radius: 50%;
+    flex-shrink: 0;
+    position: relative;
+}
+
+/* Inner hole (creates the donut shape) */
+.wst-donut-hole {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: var(--wst-donut-hole);
+    height: var(--wst-donut-hole);
+    background: var(--background-primary);
+    border-radius: 50%;
+}
+
+/* Legend list */
+.wst-donut-legend {
+    display: flex;
+    flex-direction: column;
+    gap: var(--wst-donut-legend-gap);
+}
+
+/* Single legend row */
+.wst-donut-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+/* Colored dot */
+.wst-donut-legend-dot {
+    width: var(--wst-donut-dot-size);
+    height: var(--wst-donut-dot-size);
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Legend text */
+.wst-donut-legend-label {
+    font-family: var(--wst-font-ui);
+    font-size: var(--wst-font-size-legend);
+    color: var(--text-muted);
+}
+
+
+/* ── Status track ──────────────────────────────────────────── */
+
+/* Full-width segmented bar */
+.wst-status-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.wst-status-track {
+    display: flex;
+    width: 100%;
+    height: var(--wst-status-track-height);
+    border-radius: var(--wst-status-track-radius);
+    overflow: hidden;
+    gap: 2px;
+}
+
+/* Individual segment (color + width set via JS) */
+.wst-status-seg {
+    height: 100%;
+    transition: width 0.4s ease;
+    border-radius: 0;
+}
+
+.wst-status-seg:first-child { border-radius: var(--wst-status-track-radius) 0 0 var(--wst-status-track-radius); }
+.wst-status-seg:last-child  { border-radius: 0 var(--wst-status-track-radius) var(--wst-status-track-radius) 0; }
+
+
+/* ── Table ─────────────────────────────────────────────────── */
+
+.wst-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--wst-font-ui);
+    font-size: var(--wst-font-size-table);
+}
+
+.wst-table thead th {
+    font-size: var(--wst-font-size-table-head);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    background: var(--wst-color-table-head-bg);
+    padding: 6px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--wst-color-table-border);
+}
+
+.wst-table tbody td {
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--wst-color-table-border);
+    color: var(--text-normal);
+    vertical-align: middle;
+}
+
+.wst-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Group cell (subcategory / brand+type) */
+.wst-table__group {
+    color: var(--wst-color-table-group) !important;
+    font-style: italic;
+    border-right: 1px solid var(--wst-color-table-border);
+    white-space: nowrap;
+}
+
+/* Numeric cell — right-aligned */
+.wst-table__num {
+    text-align: right;
+    color: var(--wst-color-table-num) !important;
+    font-variant-numeric: tabular-nums;
+}
