@@ -1,0 +1,329 @@
+/* ============================================================
+   WARDROBE KANBAN (Laundry Room) — CSS Snippet
+   Place in .obsidian/snippets/ and enable in
+   Settings → Appearance → CSS Snippets
+
+   All values are custom properties on .wk-root.
+   Override any variable in a second snippet to restyle.
+   ============================================================ */
+
+
+/* ── Custom Properties ─────────────────────────────────────── */
+
+.wk-root {
+
+    /* Typography
+    --------------------------------------------------------- */
+    --wk-font-serif:            "Georgia", "Times New Roman", serif;
+    --wk-font-ui:               -apple-system, sans-serif;
+
+    --wk-font-size-wordmark:    16px;
+    --wk-font-size-group:       10px;   /* group header label */
+    --wk-font-size-col:         9px;    /* column header label */
+    --wk-font-size-count:       9px;    /* item count badges */
+    --wk-font-size-toast:       12px;
+
+    /* Colors
+    --------------------------------------------------------- */
+    --wk-color-accent:          #8b6f5e;   /* chevrons, borders */
+    --wk-color-group-border:    rgba(139, 111, 94, 0.25);
+    --wk-color-col-border:      var(--background-modifier-border);
+    --wk-color-col-over:        rgba(139, 111, 94, 0.10);
+    --wk-color-col-over-border: #8b6f5e;
+    --wk-color-card-shadow:     rgba(0, 0, 0, 0.10);
+    --wk-color-dragging:        rgba(139, 111, 94, 0.15);
+    --wk-color-count-bg:        rgba(139, 111, 94, 0.10);
+    --wk-color-count-text:      #8b6f5e;
+    --wk-color-toast-bg:        #2b2b2b;
+    --wk-color-toast-error:     #b94040;
+
+    /* Layout
+    --------------------------------------------------------- */
+    --wk-max-width:             none;    /* full width by default */
+    --wk-root-padding:          2px 2px 32px;
+
+    /* Header */
+    --wk-header-padding:        14px 0 12px;
+    --wk-header-mb:             20px;
+    --wk-wordmark-ls:           0.12em;
+
+    /* Group */
+    --wk-group-mb:              24px;
+    --wk-group-header-padding:  10px 0;
+    --wk-group-header-gap:      8px;
+    --wk-group-columns-gap:     12px;   /* gap between columns */
+    --wk-group-columns-pt:      12px;   /* padding above columns */
+
+    /* Column */
+    --wk-col-width:             140px;
+    --wk-col-radius:            8px;
+    --wk-col-header-padding:    8px 10px 6px;
+    --wk-col-body-padding:      8px;
+    --wk-col-body-gap:          8px;    /* gap between cards */
+    --wk-col-min-height:        60px;   /* minimum drop zone height */
+
+    /* Card */
+    --wk-card-width:            120px;
+    --wk-card-height:           140px;
+    --wk-card-radius:           6px;
+
+    /* Toast */
+    --wk-toast-padding:         10px 18px;
+    --wk-toast-radius:          8px;
+
+    /* Transitions */
+    --wk-transition:            0.15s;
+    --wk-chevron-transition:    0.18s ease;
+}
+
+
+/* ── Root ──────────────────────────────────────────────────── */
+
+.wk-root {
+    font-family: var(--wk-font-ui);
+    max-width: var(--wk-max-width);
+    margin: 0 auto;
+    padding: var(--wk-root-padding);
+}
+
+
+/* ── Header ────────────────────────────────────────────────── */
+
+.wk-header {
+    display: flex;
+    align-items: center;
+    padding: var(--wk-header-padding);
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: var(--wk-header-mb);
+}
+
+.wk-header__wordmark {
+    font-family: var(--wk-font-serif);
+    font-size: var(--wk-font-size-wordmark);
+    font-weight: normal;
+    letter-spacing: var(--wk-wordmark-ls);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.wk-header__icon {
+    font-size: 11px;
+    opacity: 0.5;
+    margin-right: 2px;
+}
+
+
+/* ── Group ─────────────────────────────────────────────────── */
+
+/* Outer wrapper for one group (Active / Sidelined / Other) */
+.wk-group {
+    margin-bottom: var(--wk-group-mb);
+    border-bottom: 1px solid var(--wk-color-group-border);
+    padding-bottom: var(--wk-group-mb);
+}
+
+.wk-group:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+/* Clickable group header row */
+.wk-group__header {
+    display: flex;
+    align-items: center;
+    gap: var(--wk-group-header-gap);
+    padding: var(--wk-group-header-padding);
+    cursor: pointer;
+    user-select: none;
+}
+
+.wk-group__header:hover .wk-group__label {
+    color: var(--text-normal);
+}
+
+/* Rotating chevron */
+.wk-group__chevron {
+    font-size: 14px;
+    color: var(--wk-color-accent);
+    line-height: 1;
+    transition: transform var(--wk-chevron-transition);
+    flex-shrink: 0;
+}
+
+/* Group name */
+.wk-group__label {
+    font-family: var(--wk-font-ui);
+    font-size: var(--wk-font-size-group);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    transition: color var(--wk-transition);
+}
+
+/* Total item count for the group */
+.wk-group__count {
+    font-family: var(--wk-font-ui);
+    font-size: var(--wk-font-size-count);
+    font-weight: 500;
+    color: var(--wk-color-count-text);
+    background: var(--wk-color-count-bg);
+    padding: 1px 6px;
+    border-radius: 10px;
+}
+
+/* Columns row — hidden when collapsed */
+.wk-group__columns {
+    display: flex;
+    gap: var(--wk-group-columns-gap);
+    padding-top: var(--wk-group-columns-pt);
+    flex-wrap: wrap;
+    overflow: hidden;
+}
+
+/* Collapsed state — hide columns */
+.wk-group--collapsed .wk-group__columns {
+    display: none;
+}
+
+
+/* ── Column ────────────────────────────────────────────────── */
+
+/* Individual status column */
+.wk-col {
+    width: var(--wk-col-width);
+    flex-shrink: 0;
+    border-radius: var(--wk-col-radius);
+    border: 1px solid var(--wk-color-col-border);
+    background: var(--background-secondary);
+    display: flex;
+    flex-direction: column;
+    transition: border-color var(--wk-transition),
+                background var(--wk-transition);
+}
+
+/* Drop target highlight */
+.wk-col--over {
+    border-color: var(--wk-color-col-over-border);
+    background: var(--wk-color-col-over);
+}
+
+/* Column header (status label + count) */
+.wk-col__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--wk-col-header-padding);
+    border-bottom: 1px solid var(--wk-color-col-border);
+}
+
+/* Status name */
+.wk-col__label {
+    font-family: var(--wk-font-ui);
+    font-size: var(--wk-font-size-col);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+/* Item count in this column */
+.wk-col__count {
+    font-family: var(--wk-font-ui);
+    font-size: var(--wk-font-size-count);
+    color: var(--wk-color-count-text);
+    background: var(--wk-color-count-bg);
+    padding: 1px 5px;
+    border-radius: 8px;
+    min-width: 16px;
+    text-align: center;
+}
+
+/* Scrollable cards area */
+.wk-col__body {
+    padding: var(--wk-col-body-padding);
+    display: flex;
+    flex-direction: column;
+    gap: var(--wk-col-body-gap);
+    min-height: var(--wk-col-min-height);
+    flex: 1;
+}
+
+
+/* ── Card ──────────────────────────────────────────────────── */
+
+/* Image-only draggable card */
+.wk-card {
+    width: var(--wk-card-width);
+    height: var(--wk-card-height);
+    border-radius: var(--wk-card-radius);
+    overflow: hidden;
+    cursor: grab;
+    flex-shrink: 0;
+    transition: box-shadow var(--wk-transition),
+                transform var(--wk-transition),
+                opacity var(--wk-transition);
+}
+
+.wk-card:hover {
+    box-shadow: 0 4px 16px var(--wk-color-card-shadow);
+    transform: translateY(-1px);
+}
+
+.wk-card:active {
+    cursor: grabbing;
+}
+
+/* While being dragged */
+.wk-card--dragging {
+    opacity: 0.4;
+    transform: scale(0.96);
+    box-shadow: none;
+}
+
+/* Image fill */
+.wk-card__img {
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center top;
+    background-color: var(--background-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Placeholder icon when no image is set */
+.wk-card__no-img {
+    font-size: 22px;
+    opacity: 0.15;
+    pointer-events: none;
+}
+
+
+/* ── Toast ─────────────────────────────────────────────────── */
+
+.wk-toast {
+    position: fixed;
+    bottom: 22px;
+    right: 22px;
+    background: var(--wk-color-toast-bg);
+    color: #fff;
+    font-family: var(--wk-font-ui);
+    font-size: var(--wk-font-size-toast);
+    font-weight: 500;
+    padding: var(--wk-toast-padding);
+    border-radius: var(--wk-toast-radius);
+    z-index: 9999;
+    opacity: 1;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.wk-toast--error {
+    background: var(--wk-color-toast-error);
+}
+
+.wk-toast--out {
+    opacity: 0;
+}
