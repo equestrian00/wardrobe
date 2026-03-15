@@ -905,7 +905,8 @@ function refreshCanvas() {
                     slotWrap.appendChild(buildCard(
                         item.page, item.score, item.reasons, false,
                         locked ? null : () => { slotData.index++; refreshCanvas(); },
-                        state.requiredPaths.has(item.page.file.path)
+                        state.requiredPaths.has(item.page.file.path),
+                        wornTogetherCount(state.heroPage, item.page)
                     ));
 
                     if (total > 1 && !locked) {
@@ -932,7 +933,7 @@ function refreshCanvas() {
                     slotWrap.appendChild(slotLabel);
 
                     const item = slotData.candidates[slotData.index % slotData.candidates.length];
-                    slotWrap.appendChild(buildCard(item.page, item.score, item.reasons, false, null, true));
+                    slotWrap.appendChild(buildCard(item.page, item.score, item.reasons, false, null, true, wornTogetherCount(state.heroPage, item.page)));
                     suggPanel.appendChild(slotWrap);
                 });
         }   // end else (activeSlots exist)
@@ -994,8 +995,30 @@ function buildHeroSelector() {
     return wrap;
 }
 
+/**
+ * Count how many times hero and candidate appear together in outfit logs.
+ * Scans both items' `outfits` frontmatter for the other's filename,
+ * deduplicating so a single log entry counted on both sides isn't doubled.
+ */
+function wornTogetherCount(heroPage, candidatePage) {
+    const heroName = heroPage.file.name.replace(/\.md$/, "");
+    const candName = candidatePage.file.name.replace(/\.md$/, "");
+
+    // Count entries in candidate's log that mention the hero
+    const fromCand = asList(fk(candidatePage, "outfits"))
+        .filter(entry => entry.includes(heroName)).length;
+
+    // Count entries in hero's log that mention the candidate
+    const fromHero = asList(fk(heroPage, "outfits"))
+        .filter(entry => entry.includes(candName)).length;
+
+    // Take the max — both sides log the same events, so the higher
+    // count is the true number (avoids doubling if both are populated)
+    return Math.max(fromCand, fromHero);
+}
+
 // ── Card ─────────────────────────────────────────────────────────
-function buildCard(page, score, reasons, isHero, onShuffle, isRequired = false) {
+function buildCard(page, score, reasons, isHero, onShuffle, isRequired = false, wornCount = 0) {
     const imgSrc = resolveImage(fk(page, "image"));
     const name   = displayName(page);
     const size   = fk(page, "size") ? String(fk(page, "size")) : "";
@@ -1047,6 +1070,13 @@ function buildCard(page, score, reasons, isHero, onShuffle, isRequired = false) 
         const tagsEl = make("div", "ws-card__tags");
         tagsEl.textContent = tags;
         info.appendChild(tagsEl);
+    }
+
+    if (!isHero && wornCount > 0) {
+        const worn = make("div", "ws-card__worn");
+        worn.textContent = `worn together before · ${wornCount}×`;
+        worn.title = `You've logged this combination ${wornCount} time${wornCount !== 1 ? "s" : ""} before`;
+        info.appendChild(worn);
     }
 
     card.appendChild(info);
