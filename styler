@@ -1,3 +1,5 @@
+# Wardrobe Stylist
+
 ```dataviewjs
 // ╔══════════════════════════════════════════════════════════════╗
 //  🌸  WARDROBE STYLIST  —  DataviewJS
@@ -171,43 +173,107 @@ const CONFIG = {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Read formulas from a JSON code block in CONFIG.formulasNote.
- * The note should contain a ```json block whose content is an object
- * shaped like:
- *   { "Standard": { "slots": ["tops","bottoms","footwear"] },
- *     "Warm Layers": { "slots": [...], "seasons": ["Fall","Winter"] } }
+ * Parse a markdown nested-list note into an OUTFIT_FORMULAS object.
  *
- * Falls back to CONFIG.OUTFIT_FORMULAS on any error.
+ * Format (any consistent indent — spaces or tabs):
+ *
+ *   - Formula Name
+ *     - slots
+ *       - clothingcategory
+ *         - clothingsubcategory      ← optional: restrict which subcats appear
+ *           - clothingstyle          ← optional: restrict which styles appear
+ *     - seasons                      ← optional: restrict to these seasons
+ *       - Fall
+ *
+ * Rules cascade: if subcategories are listed for a slot, only items
+ * matching those subcategories appear in that slot. If styles are listed
+ * under a subcategory, only items whose clothingstyle matches appear.
+ */
+function parseListFormulas(text) {
+    const items = [];
+    for (const line of text.split("\n")) {
+        const m = line.match(/^([ \t]*)-[ \t]+(.+)$/);
+        if (m) items.push({ depth: m[1].length, val: m[2].trim() });
+    }
+    if (!items.length) return null;
+
+    // Recursive descent: collect all direct children of a node.
+    // All children must have depth > parentDepth.
+    // Returns { nodes: [{val, children[]}], nextI }.
+    function parseChildren(start, parentDepth) {
+        const nodes = [];
+        let i = start;
+        while (i < items.length && items[i].depth > parentDepth) {
+            const childDepth = items[i].depth;
+            const node = { val: items[i].val, children: [] };
+            i++;
+            const sub = parseChildren(i, childDepth);
+            node.children = sub.nodes;
+            i = sub.nextI;
+            nodes.push(node);
+            if (i < items.length && items[i].depth < childDepth) break;
+        }
+        return { nodes, nextI: i };
+    }
+
+    const { nodes: formulaNodes } = parseChildren(0, -1);
+    const formulas = {};
+
+    for (const fNode of formulaNodes) {
+        const name = fNode.val; // preserve original casing for the dropdown
+        const slots     = [];
+        const seasons   = [];
+        const slotRules = {}; // { cat: { subcategories: [], styles: { sub: [] } } }
+
+        for (const section of fNode.children) {
+            const key = section.val.toLowerCase();
+
+            if (key === "slots") {
+                for (const catNode of section.children) {
+                    const cat = catNode.val.toLowerCase();
+                    slots.push(cat);
+
+                    if (catNode.children.length) {
+                        slotRules[cat] = { subcategories: [], styles: {} };
+                        for (const subNode of catNode.children) {
+                            const sub = subNode.val.toLowerCase();
+                            slotRules[cat].subcategories.push(sub);
+                            if (subNode.children.length) {
+                                slotRules[cat].styles[sub] =
+                                    subNode.children.map(sn => sn.val.toLowerCase());
+                            }
+                        }
+                    }
+                }
+            } else if (key === "seasons") {
+                for (const sNode of section.children) seasons.push(sNode.val);
+            }
+        }
+
+        if (slots.length) {
+            formulas[name] = {
+                slots,
+                ...(seasons.length              ? { seasons }   : {}),
+                ...(Object.keys(slotRules).length ? { slotRules } : {}),
+            };
+        }
+    }
+
+    return Object.keys(formulas).length ? formulas : null;
+}
+
+/**
+ * Load formulas from the note named CONFIG.formulasNote.
+ * Falls back silently to CONFIG.OUTFIT_FORMULAS on any problem.
  */
 async function loadFormulas() {
     if (!CONFIG.formulasNote) return CONFIG.OUTFIT_FORMULAS;
-
     try {
-        const tf = app.vault.getAbstractFileByPath(CONFIG.formulasNote + ".md")
-               || app.vault.getAbstractFileByPath(CONFIG.formulasNote);
-        if (!tf) return CONFIG.OUTFIT_FORMULAS;
-
-        const raw  = await app.vault.read(tf);
-        const match = raw.match(/```json\s*([\s\S]*?)```/);
-        if (!match) return CONFIG.OUTFIT_FORMULAS;
-
-        const parsed = JSON.parse(match[1]);
-        if (typeof parsed !== "object" || Array.isArray(parsed))
-            return CONFIG.OUTFIT_FORMULAS;
-
-        const loaded = {};
-        let valid = 0;
-        for (const [name, def] of Object.entries(parsed)) {
-            if (!def || !Array.isArray(def.slots) || !def.slots.length) continue;
-            loaded[name] = {
-                slots: def.slots.map(s => String(s).trim().toLowerCase()),
-                ...(Array.isArray(def.seasons) && def.seasons.length
-                    ? { seasons: def.seasons.map(s => String(s).trim()) }
-                    : {}),
-            };
-            valid++;
-        }
-        return valid ? loaded : CONFIG.OUTFIT_FORMULAS;
+        const file = app.metadataCache.getFirstLinkpathDest(CONFIG.formulasNote, "");
+        if (!file) return CONFIG.OUTFIT_FORMULAS;
+        const raw    = await app.vault.read(file);
+        const parsed = parseListFormulas(raw);
+        return parsed || CONFIG.OUTFIT_FORMULAS;
     } catch (e) {
         console.warn("[Wardrobe Stylist] Could not load formulas note:", e);
         return CONFIG.OUTFIT_FORMULAS;
@@ -438,6 +504,30 @@ function updateSuggestions() {
             const fSeasons = formula.seasons.map(lc);
             pool = pool.filter(p =>
                 asList(fk(p, "season")).some(s => fSeasons.includes(lc(s))));
+        }
+
+        // ── Formula-level slot rules (subcategory + style restrictions) ──
+        // Defined per-slot in the formulas note; applied before hero rules.
+        const slotRule = formula.slotRules?.[slotCat];
+        if (slotRule) {
+            // Subcategory filter: hard restrict to listed subcategories
+            if (slotRule.subcategories.length) {
+                const allowed = slotRule.subcategories;
+                const filtered = pool.filter(p =>
+                    allowed.includes(lc(fk(p, "subcategory"))));
+                if (filtered.length) pool = filtered;
+            }
+            // Style filter: prefer-if-available for each subcategory's styles
+            if (Object.keys(slotRule.styles).length) {
+                const styleFiltered = pool.filter(p => {
+                    const pSub = lc(fk(p, "subcategory"));
+                    const allowedStyles = slotRule.styles[pSub];
+                    if (!allowedStyles || !allowedStyles.length) return true;
+                    const pStyles = asList(fk(p, "style")).map(lc);
+                    return pStyles.some(s => allowedStyles.includes(s));
+                });
+                if (styleFiltered.length) pool = styleFiltered;
+            }
         }
 
         const subRule = CONFIG.SUBCATEGORY_RULES[heroSub];
