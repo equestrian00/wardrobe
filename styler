@@ -370,7 +370,10 @@ function countOverlap(a, b) {
 
 function colorTheoryMatch(heroColors, candColors, theory) {
     for (const hc of heroColors) {
-        const allowed = (theory[hc] || []).map(lc);
+        // Frontmatter colors may be lowercase; theory keys are title-cased.
+        // Normalize to title-case so "black" hits "Black", etc.
+        const key     = toTitleCase(String(hc));
+        const allowed = (theory[key] || []).map(lc);
         if (candColors.some(cc => allowed.includes(lc(cc)))) return true;
     }
     return false;
@@ -804,11 +807,27 @@ function buildFilters() {
     actionGroup.appendChild(actionLabel);
 
     const actions = make("div", "ws-actions");
+
+    // Reset Filters — only shown when at least one filter is active
+    const hasActiveFilters = state.filterSeason.length ||
+                             state.filterMood.length   ||
+                             state.filterOccasion.length;
+    if (hasActiveFilters) {
+        actions.appendChild(makeBtn("Reset", "ws-btn ws-btn--action ws-btn--reset", () => {
+            state.filterSeason.length   = 0;
+            state.filterMood.length     = 0;
+            state.filterOccasion.length = 0;
+            updateSuggestions();
+            render();
+        }));
+        actions.appendChild(make("span", "ws-action-divider"));
+    }
+
     actions.appendChild(makeBtn("Random", "ws-btn ws-btn--action", () => {
         pickRandomHero();
         render();
     }));
-    actions.appendChild(make("span", "ws-action-divider")); // thin separator
+    actions.appendChild(make("span", "ws-action-divider"));
     actions.appendChild(makeBtn("Log Outfit", "ws-btn ws-btn--action", () => logOutfit()));
     actionGroup.appendChild(actions);
     el.appendChild(actionGroup);
